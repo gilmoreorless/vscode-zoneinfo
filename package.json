@@ -39,6 +39,13 @@
       "language": "zoneinfo",
       "scopeName": "text.zoneinfo",
       "path": "./syntaxes/zoneinfo.tmLanguage"
-    }]
+    }],
+    "configurationDefaults": {
+      "[zoneinfo]": {
+        "editor.detectIndentation": false,
+        "editor.insertSpaces": false,
+        "editor.tabSize": 8
+      }
+    }
   }
 }
