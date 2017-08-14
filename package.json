@@ -1,0 +1,44 @@
+{
+  "name": "zoneinfo",
+  "description": "",
+  "version": "0.0.1",
+  "publisher": "gilmoreorless",
+  "engines": {
+    "vscode": "^1.14.0"
+  },
+  "categories": [
+    "Languages"
+  ],
+  "contributes": {
+    "languages": [{
+      "id": "zoneinfo",
+      "aliases": ["ZoneInfo", "zoneinfo", "tz", "tzinfo"],
+      "filenames": [
+        "africa",
+        "antarctica",
+        "asia",
+        "australasia",
+        "backward",
+        "backzone",
+        "etcetera",
+        "europe",
+        "factory",
+        "leapseconds",
+        "northamerica",
+        "pacificnew",
+        "southamerica",
+        "systemv",
+        "iso3166.tab",
+        "leap-seconds.list",
+        "zone.tab",
+        "zone1970.tab"
+      ],
+      "configuration": "./language-configuration.json"
+    }],
+    "grammars": [{
+      "language": "zoneinfo",
+      "scopeName": "text.zoneinfo",
+      "path": "./syntaxes/zoneinfo.tmLanguage"
+    }]
+  }
+}
