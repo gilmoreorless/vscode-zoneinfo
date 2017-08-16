@@ -1,7 +1,9 @@
 {
-  "name": "zoneinfo",
-  "description": "",
+  "name": "vscode-zoneinfo",
+  "displayName": "Zoneinfo",
+  "description": "Syntax highlighting for IANA time zone database files (a.k.a zoneinfo files)",
   "version": "0.0.1",
+  "license": "MIT",
   "publisher": "gilmoreorless",
   "engines": {
     "vscode": "^1.14.0"
@@ -9,10 +11,21 @@
   "categories": [
     "Languages"
   ],
+  "keywords": [
+    "tz", "tzdata", "tzinfo", "time zone", "olson"
+  ],
+  "bugs": {
+    "url": "https://github.com/gilmoreorless/vscode-zoneinfo/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gilmoreorless/vscode-zoneinfo.git"
+  },
+  "homepage": "https://github.com/gilmoreorless/vscode-zoneinfo/blob/master/README.md",
   "contributes": {
     "languages": [{
       "id": "zoneinfo",
-      "aliases": ["ZoneInfo", "zoneinfo", "tz", "tzinfo"],
+      "aliases": ["Zoneinfo", "zoneinfo", "tz", "tzdata", "tzinfo"],
       "filenames": [
         "africa",
         "antarctica",
