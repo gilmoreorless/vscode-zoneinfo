@@ -1,1 +1,9 @@
+.editorconfig
+.gitignore
 .vscode/**
+.vscode-test/**
+out/test/**
+test/**
+src/**
+**/*.map
+tsconfig.json
