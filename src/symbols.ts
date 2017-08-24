@@ -3,6 +3,22 @@
 import * as vscode from 'vscode';
 import * as symbolCache from './symbol-cache';
 
+export const PARSEABLE_FILENAMES = [
+  'africa',
+  'antarctica',
+  'asia',
+  'australasia',
+  'backward',
+  'backzone',
+  'etcetera',
+  'europe',
+  'factory',
+  'northamerica',
+  'pacificnew',
+  'southamerica',
+  'systemv',
+];
+
 type ZoneSymbolType = 'Zone' | 'Rule' | 'Link';
 export class ZoneSymbol {
   type: ZoneSymbolType;
@@ -64,6 +80,8 @@ function parseLine(document: vscode.TextDocument, lineNumber: number): ZoneSymbo
 }
 
 export function parseDocument(document: vscode.TextDocument): ZoneSymbol[] {
+  console.log(`--parseDocument: ${document.fileName}--`);
+  let _start = Date.now();
   const lineCount = document.lineCount;
   let symbols = [];
   for (let i = 0; i < lineCount; i++) {
@@ -72,6 +90,33 @@ export function parseDocument(document: vscode.TextDocument): ZoneSymbol[] {
       symbols.push(symbol);
     }
   }
+  console.log(`  TOOK ${Date.now() - _start}ms`);
   symbolCache.setForDocument(document, symbols);
   return symbols;
+}
+
+export function parseCurrentWorkspace(): Thenable<ZoneSymbol[]> {
+  let filenames = `{${PARSEABLE_FILENAMES.join(',')}}`;
+  console.log('--parseCurrentWorkspace: finding ' + filenames);
+  let _start = Date.now();
+  return vscode.workspace.findFiles(filenames).then((files: vscode.Uri[]) => {
+    console.log(`  TOOK ${Date.now() - _start}ms`);
+    return Promise.all(files.map((file: vscode.Uri) => {
+      let existing = symbolCache.getForDocument(file);
+      if (existing !== undefined) {
+        console.log(`  (${file} from cache)`);
+        return existing;
+      }
+      console.log(`  (going to parse ${file})`);
+      return vscode.workspace.openTextDocument(file).then((doc: vscode.TextDocument) =>
+        parseDocument(doc)
+      )
+    }))
+  }).then((results: ZoneSymbol[][]): ZoneSymbol[] => {
+    console.log('--DONE PARSING WORKSPACE--', results.length);
+    console.log(`  TOOK ${Date.now() - _start}ms`);
+    let combined = results.reduce((all, sub) => all.concat(sub), []);
+    symbolCache.setForCurrentWorkspace(combined);
+    return combined;
+  });
 }

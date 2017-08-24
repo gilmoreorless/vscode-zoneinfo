@@ -1,17 +1,18 @@
 'use strict';
 
 import * as vscode from 'vscode';
-import { ZoneSymbol, parseDocument } from './symbols';
+import { ZoneSymbol, parseDocument, parseCurrentWorkspace } from './symbols';
 import * as symbolCache from './symbol-cache';
 
 const ZONEINFO_MODE = 'zoneinfo';
 
 export function activate(context: vscode.ExtensionContext) {
-  let disposable = vscode.languages.registerDocumentSymbolProvider(
-    ZONEINFO_MODE, new ZoneinfoDocumentSymbolProvider());
-
-  context.subscriptions.push(disposable);
   console.log('--activate--');
+  context.subscriptions.push(
+    vscode.languages.registerDocumentSymbolProvider(ZONEINFO_MODE, new ZoneinfoDocumentSymbolProvider()),
+    vscode.languages.registerWorkspaceSymbolProvider(new ZoneinfoWorkspaceSymbolProvider()),
+  );
+  process.nextTick(parseCurrentWorkspace);
 }
 
 export function deactivate() {
@@ -38,6 +39,39 @@ class ZoneinfoDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
     document: vscode.TextDocument, token: vscode.CancellationToken
   ): vscode.ProviderResult<vscode.SymbolInformation[]> {
     return this.uniqueSymbols(parseDocument(document));
+  }
+
+}
+
+class ZoneinfoWorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider {
+
+  private symbolProvider: ZoneinfoDocumentSymbolProvider;
+
+  public constructor() {
+    this.symbolProvider = new ZoneinfoDocumentSymbolProvider();
+  }
+
+  public filteredSymbols(symbols: ZoneSymbol[], query: string): vscode.ProviderResult<vscode.SymbolInformation[]> {
+    // let queryLetters = [...query].map(c => c.toLocaleLowerCase());
+    // TODO: Less-naïve checking of string matches
+    let filtered = symbols.filter((symbol: ZoneSymbol) =>
+      symbol.name.indexOf(query) !== -1);
+    return this.symbolProvider.uniqueSymbols(filtered);
+  }
+
+  // TODO: Test this with single files rather than the tz folder
+  public provideWorkspaceSymbols(
+    query: string, token: vscode.CancellationToken
+  ): vscode.ProviderResult<vscode.SymbolInformation[]> {
+    
+    console.log('--provideWorkspaceSymbols--');
+    let allSymbols = symbolCache.getForCurrentWorkspace();
+    console.log(`  (cache has ${allSymbols ? allSymbols.length : 'nothing'})`);
+    let promise = (allSymbols !== null) ?
+      Promise.resolve(allSymbols) :
+      parseCurrentWorkspace();
+
+    return promise.then(symbols => this.filteredSymbols(allSymbols, query));
   }
 
 }
