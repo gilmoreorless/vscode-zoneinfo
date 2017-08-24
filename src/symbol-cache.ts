@@ -3,9 +3,14 @@
 import * as vscode from 'vscode';
 import ZoneSymbol from './zone-symbol';
 
+// TODO: Use workspaceContext.workspaceState() to properly store this
 let fullCache = new Map();
 
 type CacheKey = string | vscode.Uri | vscode.TextDocument;
+export type DocumentCache = {
+  isDirty: boolean;
+  symbols: ZoneSymbol[];
+};
 
 function makeKey(file: CacheKey): string {
   if (typeof file === 'string') {
@@ -45,7 +50,10 @@ export function setForCurrentWorkspace(symbols: ZoneSymbol[]) {
 }
 
 export function setForDocument(key: CacheKey, symbols: ZoneSymbol[]) {
-  getCacheForWorkspace().byFile.set(makeKey(key), symbols);
+  getCacheForWorkspace().byFile.set(makeKey(key), {
+    isDirty: false,
+    symbols
+  });
 }
 
 export function getForCurrentWorkspace(): ZoneSymbol[] {
@@ -56,6 +64,6 @@ export function getForCurrentWorkspace(): ZoneSymbol[] {
   return cache.all;
 }
 
-export function getForDocument(key: CacheKey): ZoneSymbol[] {
+export function getForDocument(key: CacheKey): DocumentCache {
   return getCacheForWorkspace().byFile.get(makeKey(key));
 }

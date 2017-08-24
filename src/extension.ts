@@ -1,24 +1,23 @@
 'use strict';
 
 import * as vscode from 'vscode';
-import * as symbolCache from './symbol-cache';
-import { parseDocument, parseCurrentWorkspace } from './symbol-parser';
+import * as symbols from './symbols';
 import ZoneSymbol from './zone-symbol';
 
 const ZONEINFO_MODE = 'zoneinfo';
 
 export function activate(context: vscode.ExtensionContext) {
-  console.log('--activate--');
+  console.log('\n==activate==', context);
   context.subscriptions.push(
     vscode.languages.registerDocumentSymbolProvider(ZONEINFO_MODE, new ZoneinfoDocumentSymbolProvider()),
     vscode.languages.registerWorkspaceSymbolProvider(new ZoneinfoWorkspaceSymbolProvider()),
   );
-  process.nextTick(parseCurrentWorkspace);
+  process.nextTick(symbols.cacheCurrentWorkspace);
 }
 
 export function deactivate() {
-  console.log('--deactivate--');
-  symbolCache.clear();
+  console.log('\n==deactivate==');
+  symbols.clearCache();
 }
 
 class ZoneinfoDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
@@ -39,7 +38,9 @@ class ZoneinfoDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
   public provideDocumentSymbols(
     document: vscode.TextDocument, token: vscode.CancellationToken
   ): vscode.ProviderResult<vscode.SymbolInformation[]> {
-    return this.uniqueSymbols(parseDocument(document));
+
+    console.log('\n==provideDocumentSymbols==');
+    return symbols.getForDocument(document).then(s => this.uniqueSymbols(s));
   }
 
 }
@@ -55,8 +56,9 @@ class ZoneinfoWorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider 
   public filteredSymbols(symbols: ZoneSymbol[], query: string): vscode.ProviderResult<vscode.SymbolInformation[]> {
     // let queryLetters = [...query].map(c => c.toLocaleLowerCase());
     // TODO: Less-naïve checking of string matches
+    let search = query.toLocaleLowerCase();
     let filtered = symbols.filter((symbol: ZoneSymbol) =>
-      symbol.name.indexOf(query) !== -1);
+      symbol.name.toLocaleLowerCase().indexOf(search) !== -1);
     return this.symbolProvider.uniqueSymbols(filtered);
   }
 
@@ -65,14 +67,8 @@ class ZoneinfoWorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider 
     query: string, token: vscode.CancellationToken
   ): vscode.ProviderResult<vscode.SymbolInformation[]> {
     
-    console.log('--provideWorkspaceSymbols--');
-    let allSymbols = symbolCache.getForCurrentWorkspace();
-    console.log(`  (cache has ${allSymbols ? allSymbols.length : 'nothing'})`);
-    let promise = (allSymbols !== null) ?
-      Promise.resolve(allSymbols) :
-      parseCurrentWorkspace();
-
-    return promise.then(symbols => this.filteredSymbols(allSymbols, query));
+    console.log('\n==provideWorkspaceSymbols==');
+    return symbols.getForCurrentWorkspace().then(s => this.filteredSymbols(s, query));
   }
 
 }
