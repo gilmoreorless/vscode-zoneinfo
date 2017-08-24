@@ -1,7 +1,7 @@
 'use strict';
 
 import * as vscode from 'vscode';
-import { ZoneSymbol } from './symbols';
+import ZoneSymbol from './zone-symbol';
 
 let fullCache = new Map();
 

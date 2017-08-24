@@ -1,8 +1,9 @@
 'use strict';
 
 import * as vscode from 'vscode';
-import { ZoneSymbol, parseDocument, parseCurrentWorkspace } from './symbols';
 import * as symbolCache from './symbol-cache';
+import { parseDocument, parseCurrentWorkspace } from './symbol-parser';
+import ZoneSymbol from './zone-symbol';
 
 const ZONEINFO_MODE = 'zoneinfo';
 

@@ -1,7 +1,7 @@
 'use strict';
 
 import * as vscode from 'vscode';
-import * as symbolCache from './symbol-cache';
+import ZoneSymbol from './zone-symbol';
 
 export const PARSEABLE_FILENAMES = [
   'africa',
@@ -19,43 +19,11 @@ export const PARSEABLE_FILENAMES = [
   'systemv',
 ];
 
-type ZoneSymbolType = 'Zone' | 'Rule' | 'Link';
-export class ZoneSymbol {
-  type: ZoneSymbolType;
-  name: string;
-  parent?: string;
-  location: vscode.Location;
-
-  public constructor(
-    type: ZoneSymbolType, name: string, document: vscode.TextDocument, line: number, col: number
-  ) {
-    this.type = type;
-    this.name = name;
-    this.location = this.locationFromLineCol(name, document, line, col);
-  }
-
-  public toSymbolInformation(): vscode.SymbolInformation {
-    return new vscode.SymbolInformation(
-      this.name, vscode.SymbolKind.Field, this.parent || this.type, this.location
-    );
-  }
-
-  private locationFromLineCol(
-    name: string, document: vscode.TextDocument, line: number, col: number
-  ): vscode.Location {
-    let range = new vscode.Range(
-      line, col,
-      line, col + name.length
-    );
-    return new vscode.Location(document.uri, range);
-  }
-}
-
 const rValidLine = /^(Zone|Rule|Link)/;
 const rWhitespaceCapture = /(\s+)/;
 const rWhitespaceOnly = /^\s+$/; // TODO: Use this when parsing line "tokens", some of which are whitespace-only
 
-function sumLengths(arr: string[], beforeIndex: number) {
+function sumLengths(arr: string[], beforeIndex: number): number {
   return arr.slice(0, beforeIndex).reduce((sum, str) => sum + str.length, 0);
 }
 
@@ -91,7 +59,7 @@ export function parseDocument(document: vscode.TextDocument): ZoneSymbol[] {
     }
   }
   console.log(`  TOOK ${Date.now() - _start}ms`);
-  symbolCache.setForDocument(document, symbols);
+  // symbolCache.setForDocument(document, symbols);
   return symbols;
 }
 
@@ -102,7 +70,8 @@ export function parseCurrentWorkspace(): Thenable<ZoneSymbol[]> {
   return vscode.workspace.findFiles(filenames).then((files: vscode.Uri[]) => {
     console.log(`  TOOK ${Date.now() - _start}ms`);
     return Promise.all(files.map((file: vscode.Uri) => {
-      let existing = symbolCache.getForDocument(file);
+      // let existing = symbolCache.getForDocument(file);
+      let existing;
       if (existing !== undefined) {
         console.log(`  (${file} from cache)`);
         return existing;
@@ -116,7 +85,7 @@ export function parseCurrentWorkspace(): Thenable<ZoneSymbol[]> {
     console.log('--DONE PARSING WORKSPACE--', results.length);
     console.log(`  TOOK ${Date.now() - _start}ms`);
     let combined = results.reduce((all, sub) => all.concat(sub), []);
-    symbolCache.setForCurrentWorkspace(combined);
+    // symbolCache.setForCurrentWorkspace(combined);
     return combined;
   });
 }
