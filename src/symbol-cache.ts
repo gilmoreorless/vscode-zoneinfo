@@ -1,0 +1,61 @@
+'use strict';
+
+import * as vscode from 'vscode';
+import { ZoneSymbol } from './symbols';
+
+let fullCache = new Map();
+
+type CacheKey = string | vscode.Uri | vscode.TextDocument;
+
+function makeKey(file: CacheKey): string {
+  if (typeof file === 'string') {
+    return file;
+  }
+  if ((<vscode.TextDocument>file).uri) {
+    file = (<vscode.TextDocument>file).uri;
+  }
+  return file.toString();
+}
+
+function getCacheForWorkspace(workspace?: string) {
+  if (workspace === undefined) {
+    workspace = vscode.workspace.rootPath;
+  }
+  let cache = fullCache.get(workspace);
+  if (cache === undefined) {
+    cache = {
+      byFile: new Map(),
+      all: [],
+      isComplete: false,
+    };
+    fullCache.set(workspace, cache);
+  }
+  return cache;
+}
+
+export function clear() {
+  // TODO: Clear for just a workspace/file?
+  fullCache = new Map();
+}
+
+export function setForCurrentWorkspace(symbols: ZoneSymbol[]) {
+  let cache = getCacheForWorkspace();
+  cache.all = symbols;
+  cache.isComplete = true;
+}
+
+export function setForDocument(key: CacheKey, symbols: ZoneSymbol[]) {
+  getCacheForWorkspace().byFile.set(makeKey(key), symbols);
+}
+
+export function getForCurrentWorkspace(): ZoneSymbol[] {
+  let cache = getCacheForWorkspace();
+  if (!cache.isComplete) {
+    return null;
+  }
+  return cache.all;
+}
+
+export function getForDocument(key: CacheKey): ZoneSymbol[] {
+  return getCacheForWorkspace().byFile.get(makeKey(key));
+}

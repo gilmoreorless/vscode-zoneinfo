@@ -1,6 +1,7 @@
 'use strict';
 
 import * as vscode from 'vscode';
+import * as symbolCache from './symbol-cache';
 
 type ZoneSymbolType = 'Zone' | 'Rule' | 'Link';
 export class ZoneSymbol {
@@ -71,5 +72,6 @@ export function parseDocument(document: vscode.TextDocument): ZoneSymbol[] {
       symbols.push(symbol);
     }
   }
+  symbolCache.setForDocument(document, symbols);
   return symbols;
 }
