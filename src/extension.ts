@@ -2,7 +2,7 @@
 
 import * as vscode from 'vscode';
 import * as symbols from './symbols';
-import ZoneSymbol from './zone-symbol';
+import { ZoneSymbol, ZoneSymbolTextSpan } from './zone-symbol';
 
 const ZONEINFO_MODE = 'zoneinfo';
 
@@ -11,6 +11,7 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.languages.registerDocumentSymbolProvider(ZONEINFO_MODE, new ZoneinfoDocumentSymbolProvider()),
     vscode.languages.registerWorkspaceSymbolProvider(new ZoneinfoWorkspaceSymbolProvider()),
+    vscode.languages.registerDefinitionProvider(ZONEINFO_MODE, new ZoneinfoDefinitionProvider()),
   );
   process.nextTick(symbols.cacheCurrentWorkspace);
 }
@@ -25,7 +26,7 @@ class ZoneinfoDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
   public uniqueSymbols(symbols: ZoneSymbol[]): vscode.ProviderResult<vscode.SymbolInformation[]> {
     let used = new Set();
     return symbols.filter(symbol => {
-      let key = [symbol.type, symbol.name].join(':');
+      let key = [symbol.type, symbol.name.text].join(':');
       if (used.has(key)) {
         return false;
       }
@@ -58,7 +59,7 @@ class ZoneinfoWorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider 
     // TODO: Less-naïve checking of string matches
     let search = query.toLocaleLowerCase();
     let filtered = symbols.filter((symbol: ZoneSymbol) =>
-      symbol.name.toLocaleLowerCase().indexOf(search) !== -1);
+      symbol.name.text.toLocaleLowerCase().indexOf(search) !== -1);
     return this.symbolProvider.uniqueSymbols(filtered);
   }
 
@@ -69,6 +70,24 @@ class ZoneinfoWorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider 
     
     console.log('\n==provideWorkspaceSymbols==');
     return symbols.getForCurrentWorkspace().then(s => this.filteredSymbols(s, query));
+  }
+
+}
+
+class ZoneinfoDefinitionProvider implements vscode.DefinitionProvider {
+
+  public provideDefinition(
+    document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken
+  ): vscode.ProviderResult<vscode.Definition> {
+
+    console.log('\n==provideDefinition==');
+    console.log(document.fileName, JSON.stringify(position));
+    return symbols.getSpanForDocumentPosition(document, position).then((span: ZoneSymbolTextSpan) => {
+      if (span === null) {
+        return null;
+      }
+      return symbols.getForName(span.text).then(allSymbols => allSymbols.map(s => s.name.location));
+    });
   }
 
 }

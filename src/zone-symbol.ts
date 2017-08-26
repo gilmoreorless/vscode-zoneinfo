@@ -2,35 +2,50 @@
 
 import * as vscode from 'vscode';
 
-type ZoneSymbolType = 'Zone' | 'Rule' | 'Link';
-export default class ZoneSymbol {
-  type: ZoneSymbolType;
-  name: string;
-  parent?: string;
+export type ZoneSymbolType = 'Zone' | 'Rule' | 'Link';
+
+export type ZoneSymbolTextSpan = {
+  text: string;
   location: vscode.Location;
+};
+
+export class ZoneSymbol {
+  type: ZoneSymbolType;
+  name: ZoneSymbolTextSpan;
+  parentText?: string;
+  references: ZoneSymbolTextSpan[];
 
   public constructor(
-    type: ZoneSymbolType, name: string, document: vscode.TextDocument, line: number, col: number
+    type: ZoneSymbolType, name: ZoneSymbolTextSpan, link?: ZoneSymbolTextSpan
   ) {
     this.type = type;
     this.name = name;
-    this.location = this.locationFromLineCol(name, document, line, col);
+    this.references = [];
+    if (link) {
+      this.references.push(link);
+    }
   }
 
   public toSymbolInformation(): vscode.SymbolInformation {
     return new vscode.SymbolInformation(
-      this.name, vscode.SymbolKind.Field, this.parent || this.type, this.location
+      this.name.text, vscode.SymbolKind.Field, this.parentText || this.type, this.name.location
     );
   }
 
-  private locationFromLineCol(
-    name: string, document: vscode.TextDocument, line: number, col: number
-  ): vscode.Location {
-    let range = new vscode.Range(
-      line, col,
-      line, col + name.length
+  static textSpanFromLineReference(
+    document: vscode.TextDocument, line: number, ref?: { text: string; char: number }
+  ): ZoneSymbolTextSpan {
+    if (!ref) {
+      return null;
+    }
+    const range = new vscode.Range(
+      line, ref.char,
+      line, ref.char + ref.text.length
     );
-    return new vscode.Location(document.uri, range);
+    return {
+      text: ref.text,
+      location: new vscode.Location(document.uri, range),
+    };
   }
 }
 

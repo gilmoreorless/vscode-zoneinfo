@@ -1,7 +1,7 @@
 'use strict';
 
 import * as vscode from 'vscode';
-import ZoneSymbol from './zone-symbol';
+import { ZoneSymbol } from './zone-symbol';
 
 // TODO: Use workspaceContext.workspaceState() to properly store this
 let fullCache = new Map();

@@ -3,7 +3,7 @@
 import * as vscode from 'vscode';
 import * as cache from './symbol-cache';
 import * as parser from './symbol-parser';
-import ZoneSymbol from './zone-symbol';
+import { ZoneSymbol, ZoneSymbolTextSpan } from './zone-symbol';
 
 export function cacheCurrentWorkspace(): Thenable<ZoneSymbol[]> {
   return parser.parseCurrentWorkspace().then((fileSymbols) => {
@@ -49,4 +49,27 @@ export function getForDocument(document: vscode.TextDocument): Thenable<ZoneSymb
     symbols = fileCache.symbols;
   }
   return Promise.resolve(symbols);
+}
+
+export function getForName(name: string): Thenable<ZoneSymbol[]> {
+  // TODO: Maybe cache this
+  return getForCurrentWorkspace().then((allSymbols) => {
+    return allSymbols.filter(s => s.name.text === name);
+  });
+}
+
+export function getSpanForDocumentPosition(document: vscode.TextDocument, position: vscode.Position): Thenable<ZoneSymbolTextSpan> {
+  return getForDocument(document).then((symbols) => {
+    for (let symbol of symbols) {
+      if (symbol.name.location.range.contains(position)) {
+        return symbol.name;
+      }
+      for (let ref of symbol.references) {
+        if (ref.location.range.contains(position)) {
+          return ref;
+        }
+      }
+    }
+    return null;
+  });
 }

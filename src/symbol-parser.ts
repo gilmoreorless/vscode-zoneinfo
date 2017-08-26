@@ -1,7 +1,7 @@
 'use strict';
 
 import * as vscode from 'vscode';
-import ZoneSymbol from './zone-symbol';
+import { ZoneSymbol, ZoneSymbolType, ZoneSymbolTextSpan } from './zone-symbol';
 
 export const PARSEABLE_FILENAMES = [
   'africa',
@@ -27,21 +27,51 @@ function sumLengths(arr: string[], beforeIndex: number): number {
   return arr.slice(0, beforeIndex).reduce((sum, str) => sum + str.length, 0);
 }
 
+function tokensToReferences(tokens: string[], nameField: number, linkField?: number) {
+  let fieldIndex = -1;
+  let charIndex = 0;
+  let name, link;
+  tokens.forEach((token) => {
+    if (!rWhitespaceOnly.test(token)) {
+      fieldIndex++;
+      if (fieldIndex === nameField) {
+        name = { text: token, char: charIndex };
+      }
+      if (linkField !== undefined && fieldIndex === linkField && token !== '-') {
+        link = { text: token, char: charIndex };
+      }
+    }
+    charIndex += token.length;
+  });
+  return { name, link };
+}
+
+// TODO: Make this work for multi-line zones
 function parseLine(document: vscode.TextDocument, lineNumber: number): ZoneSymbol {
-  let line = document.lineAt(lineNumber);
-  let text = line.text;
+  const line = document.lineAt(lineNumber);
+  const text = line.text;
   // Skip non-definition lines
   if (line.isEmptyOrWhitespace || line.text.indexOf('#') === 0 || !rValidLine.test(text)) {
     return null;
   }
-  const parts = text.split(rWhitespaceCapture);
-  const type = parts[0];
-  if (type === 'Zone' || type === 'Rule') {
-    return new ZoneSymbol(type, parts[2], document, lineNumber, sumLengths(parts, 2));
+
+  const tokens = text.split(rWhitespaceCapture);
+  const type = tokens[0];
+  let refs;
+  switch (type) {
+    case 'Zone': refs = tokensToReferences(tokens, 1, 3); break;
+    case 'Rule': refs = tokensToReferences(tokens, 1); break;
+    case 'Link': refs = tokensToReferences(tokens, 2, 1); break;
   }
-  if (type === 'Link') {
-    let symbol = new ZoneSymbol(type, parts[4], document, lineNumber, sumLengths(parts, 4));
-    symbol.parent = `Link(${parts[2]})`;
+  if (refs) {
+    let symbol = new ZoneSymbol(
+      <ZoneSymbolType>type,
+      ZoneSymbol.textSpanFromLineReference(document, lineNumber, refs.name),
+      ZoneSymbol.textSpanFromLineReference(document, lineNumber, refs.link)
+    );
+    if (type === 'Link') {
+      symbol.parentText = `Link(${tokens[2]})`;
+    }
     return symbol;
   }
   return null;
