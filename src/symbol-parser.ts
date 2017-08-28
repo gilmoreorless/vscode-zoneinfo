@@ -21,7 +21,8 @@ export const PARSEABLE_FILENAMES = [
 
 const rValidLine = /^(Zone|Rule|Link)/;
 const rWhitespaceCapture = /(\s+)/;
-const rWhitespaceOnly = /^\s+$/; // TODO: Use this when parsing line "tokens", some of which are whitespace-only
+const rWhitespaceOnly = /^\s+$/;
+const rStartTabs = /^\t{2,}/;
 
 function sumLengths(arr: string[], beforeIndex: number): number {
   return arr.slice(0, beforeIndex).reduce((sum, str) => sum + str.length, 0);
@@ -34,7 +35,7 @@ function tokensToReferences(tokens: string[], nameField: number, linkField?: num
   tokens.forEach((token) => {
     if (!rWhitespaceOnly.test(token)) {
       fieldIndex++;
-      if (fieldIndex === nameField) {
+      if (nameField !== null && fieldIndex === nameField) {
         name = { text: token, char: charIndex };
       }
       if (linkField !== undefined && fieldIndex === linkField && token !== '-') {
@@ -51,7 +52,7 @@ function parseLine(document: vscode.TextDocument, lineNumber: number): ZoneSymbo
   const line = document.lineAt(lineNumber);
   const text = line.text;
   // Skip non-definition lines
-  if (line.isEmptyOrWhitespace || line.text.indexOf('#') === 0 || !rValidLine.test(text)) {
+  if (line.isEmptyOrWhitespace || text.indexOf('#') === 0 || !rValidLine.test(text)) {
     return null;
   }
 
@@ -77,6 +78,23 @@ function parseLine(document: vscode.TextDocument, lineNumber: number): ZoneSymbo
   return null;
 }
 
+function parseExtraZoneLines(document: vscode.TextDocument, lineNumber: number, symbol: ZoneSymbol): number {
+  let count = 0;
+  while (true) {
+    const text = document.lineAt(lineNumber).text;
+    if (!rStartTabs.test(text)) {
+      return count;
+    }
+    const tokens = text.split(rWhitespaceCapture);
+    const refs = tokensToReferences(tokens, null, 2);
+    if (refs.link) {
+      symbol.references.push(ZoneSymbol.textSpanFromLineReference(document, lineNumber, refs.link));
+    }
+    lineNumber++;
+    count++;
+  }
+}
+
 export function parseDocument(document: vscode.TextDocument): ZoneSymbol[] {
   console.log(`--parseDocument: ${document.fileName}--`);
   let _start = Date.now();
@@ -86,6 +104,9 @@ export function parseDocument(document: vscode.TextDocument): ZoneSymbol[] {
     let symbol = parseLine(document, i);
     if (symbol) {
       symbols.push(symbol);
+      if (symbol.type === 'Zone') {
+        i += parseExtraZoneLines(document, i + 1, symbol);
+      }
     }
   }
   console.log(`  TOOK ${Date.now() - _start}ms`);

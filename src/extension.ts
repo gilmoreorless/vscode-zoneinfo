@@ -113,3 +113,5 @@ class ZoneinfoReferenceProvider implements vscode.ReferenceProvider {
       });
     });
   }
+
+}
