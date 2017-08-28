@@ -12,6 +12,7 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.languages.registerDocumentSymbolProvider(ZONEINFO_MODE, new ZoneinfoDocumentSymbolProvider()),
     vscode.languages.registerWorkspaceSymbolProvider(new ZoneinfoWorkspaceSymbolProvider()),
     vscode.languages.registerDefinitionProvider(ZONEINFO_MODE, new ZoneinfoDefinitionProvider()),
+    vscode.languages.registerReferenceProvider(ZONEINFO_MODE, new ZoneinfoReferenceProvider()),
   );
   process.nextTick(symbols.cacheCurrentWorkspace);
 }
@@ -23,9 +24,9 @@ export function deactivate() {
 
 class ZoneinfoDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
 
-  public uniqueSymbols(symbols: ZoneSymbol[]): vscode.ProviderResult<vscode.SymbolInformation[]> {
+  public uniqueSymbols(allSymbols: ZoneSymbol[]): vscode.ProviderResult<vscode.SymbolInformation[]> {
     let used = new Set();
-    return symbols.filter(symbol => {
+    return allSymbols.filter(symbol => {
       let key = [symbol.type, symbol.name.text].join(':');
       if (used.has(key)) {
         return false;
@@ -91,3 +92,24 @@ class ZoneinfoDefinitionProvider implements vscode.DefinitionProvider {
   }
 
 }
+
+class ZoneinfoReferenceProvider implements vscode.ReferenceProvider {
+
+  public provideReferences(
+    document: vscode.TextDocument, position: vscode.Position, context: vscode.ReferenceContext, token: vscode.CancellationToken
+  ): vscode.ProviderResult<vscode.Location[]> {
+
+    console.log('\n==provideReferences==');
+    console.log(document.fileName, JSON.stringify(position), context.includeDeclaration);
+    return symbols.getSpanForDocumentPosition(document, position).then((span: ZoneSymbolTextSpan): Thenable<vscode.Location[]> => {
+      if (span === null) {
+        return null;
+      }
+      return symbols.getSpanLinksToName(span.text).then((spans) => {
+        if (!context.includeDeclaration) {
+          spans = spans.filter(s => s !== span);
+        }
+        return spans.map(s => s.location);
+      });
+    });
+  }

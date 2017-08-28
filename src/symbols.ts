@@ -58,6 +58,19 @@ export function getForName(name: string): Thenable<ZoneSymbol[]> {
   });
 }
 
+export function getSpanLinksToName(name: string): Thenable<ZoneSymbolTextSpan[]> {
+  return getForCurrentWorkspace().then((allSymbols: ZoneSymbol[]) => {
+    let _start = Date.now();
+    let res = allSymbols.map((symbol) => {
+      if (symbol.name.text === name) {
+        return [symbol.name];
+      }
+      return symbol.references.filter(ref => ref.text === name);
+    }).reduce((all, spans) => all.concat(spans), [])
+    return res;
+  });
+}
+
 export function getSpanForDocumentPosition(document: vscode.TextDocument, position: vscode.Position): Thenable<ZoneSymbolTextSpan> {
   return getForDocument(document).then((symbols) => {
     for (let symbol of symbols) {
