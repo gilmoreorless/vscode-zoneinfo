@@ -86,3 +86,15 @@ export function getSpanForDocumentPosition(document: vscode.TextDocument, positi
     return null;
   });
 }
+
+export function unique(symbols: ZoneSymbol[]): ZoneSymbol[] {
+  let used = new Set();
+  return symbols.filter(symbol => {
+    let key = [symbol.type, symbol.name.text].join(':');
+    if (used.has(key)) {
+      return false;
+    }
+    used.add(key);
+    return true;
+  });
+}

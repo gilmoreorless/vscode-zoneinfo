@@ -24,17 +24,12 @@ export function deactivate() {
 
 class ZoneinfoDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
 
+  public toSymbolInformation(allSymbols: ZoneSymbol[]): vscode.ProviderResult<vscode.SymbolInformation[]> {
+    return allSymbols.map(s => s.toSymbolInformation());
+  }
+
   public uniqueSymbols(allSymbols: ZoneSymbol[]): vscode.ProviderResult<vscode.SymbolInformation[]> {
-    let used = new Set();
-    return allSymbols.filter(symbol => {
-      let key = [symbol.type, symbol.name.text].join(':');
-      if (used.has(key)) {
-        return false;
-      }
-      used.add(key);
-      return true;
-    })
-    .map(symbol => symbol.toSymbolInformation());
+    return this.toSymbolInformation(symbols.unique(allSymbols));
   }
 
   public provideDocumentSymbols(
@@ -55,13 +50,33 @@ class ZoneinfoWorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider 
     this.symbolProvider = new ZoneinfoDocumentSymbolProvider();
   }
 
-  public filteredSymbols(symbols: ZoneSymbol[], query: string): vscode.ProviderResult<vscode.SymbolInformation[]> {
-    // let queryLetters = [...query].map(c => c.toLocaleLowerCase());
-    // TODO: Less-naïve checking of string matches
-    let search = query.toLocaleLowerCase();
-    let filtered = symbols.filter((symbol: ZoneSymbol) =>
-      symbol.name.text.toLocaleLowerCase().indexOf(search) !== -1);
-    return this.symbolProvider.uniqueSymbols(filtered);
+  public filteredSymbols(allSymbols: ZoneSymbol[], query: string): vscode.ProviderResult<vscode.SymbolInformation[]> {
+    const uniqueSymbols = symbols.unique(allSymbols);
+    if (!query.length) {
+      return this.symbolProvider.toSymbolInformation(uniqueSymbols);
+    }
+    // Just match that the query chars appear somewhere in the name in the right order.
+    // Let VS Code handle the sorting by relevance.
+    const queryLower = query.toLocaleLowerCase();
+    const queryChars = [...queryLower];
+    // TODO: Memo-ise this output?
+    const doesMatch = (name: string) => {
+      let search = name.toLocaleLowerCase();
+      if (queryLower.includes(search)) {
+        return true;
+      }
+      for (let char of queryChars) {
+        let index = search.indexOf(char);
+        if (index === -1) {
+          return false;
+        }
+        search = search.substr(index + 1);
+      }
+      return true;
+    };
+
+    const filtered = uniqueSymbols.filter((symbol: ZoneSymbol) => doesMatch(symbol.name.text));
+    return this.symbolProvider.toSymbolInformation(filtered);
   }
 
   // TODO: Test this with single files rather than the tz folder
