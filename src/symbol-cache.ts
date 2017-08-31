@@ -12,6 +12,9 @@ export type DocumentCache = {
   symbols: ZoneSymbol[];
 };
 
+
+// ----- Internal helpers -----
+
 function makeKey(file: CacheKey): string {
   if (typeof file === 'string') {
     return file;
@@ -32,14 +35,34 @@ function getCacheForWorkspace(workspace?: string) {
       byFile: new Map(),
       all: [],
       isComplete: false,
+      hasDirtyFiles: true,
     };
     fullCache.set(workspace, cache);
   }
   return cache;
 }
 
+function updateAllForWorkspace() {
+  let fullCache = getCacheForWorkspace();
+  if (fullCache.isComplete) {
+    console.log('--updateAllForWorkspace()--');
+    console.log('  (updating all symbols from documents)');
+    let allSymbols = [];
+    for (let docCache of fullCache.byFile.values()) {
+      allSymbols = allSymbols.concat(docCache.symbols);
+    }
+    fullCache.all = allSymbols;
+  }
+}
+
+function setCacheForDocument(key: CacheKey, isDirty: boolean, symbols: ZoneSymbol[]) {
+  getCacheForWorkspace().byFile.set(makeKey(key), { isDirty, symbols });
+}
+
+
+// ----- Public API -----
+
 export function clear() {
-  // TODO: Clear for just a workspace/file?
   fullCache = new Map();
 }
 
@@ -50,10 +73,13 @@ export function setForCurrentWorkspace(symbols: ZoneSymbol[]) {
 }
 
 export function setForDocument(key: CacheKey, symbols: ZoneSymbol[]) {
-  getCacheForWorkspace().byFile.set(makeKey(key), {
-    isDirty: false,
-    symbols
-  });
+  setCacheForDocument(key, false, symbols);
+  updateAllForWorkspace();
+}
+
+export function setDocumentDirtyState(key: CacheKey, isDirty: boolean) {
+  let docCache = getForDocument(key);
+  setCacheForDocument(key, isDirty, docCache && docCache.symbols);
 }
 
 export function getForCurrentWorkspace(): ZoneSymbol[] {

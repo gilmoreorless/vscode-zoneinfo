@@ -13,6 +13,8 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.languages.registerWorkspaceSymbolProvider(new ZoneinfoWorkspaceSymbolProvider()),
     vscode.languages.registerDefinitionProvider(ZONEINFO_MODE, new ZoneinfoDefinitionProvider()),
     vscode.languages.registerReferenceProvider(ZONEINFO_MODE, new ZoneinfoReferenceProvider()),
+    vscode.workspace.onDidChangeTextDocument(documentChanged),
+    vscode.workspace.onDidSaveTextDocument(documentSaved),
   );
   process.nextTick(symbols.cacheCurrentWorkspace);
 }
@@ -20,6 +22,22 @@ export function activate(context: vscode.ExtensionContext) {
 export function deactivate() {
   console.log('\n==deactivate==');
   symbols.clearCache();
+}
+
+function documentChanged(e: vscode.TextDocumentChangeEvent) {
+  console.log('\n==onDidChangeTextDocument==');
+  console.log(e.document, e.contentChanges);
+  const { document, contentChanges } = e;
+  if (document.languageId === 'zoneinfo' && contentChanges.length === 0) {
+    console.log(`  (setting document dirty state)`);
+    symbols.markDocumentDirty(document);
+  }
+}
+
+function documentSaved(document: vscode.TextDocument) {
+  console.log('\n==onDidSaveTextDocument==');
+  console.log(document);
+  symbols.cacheDocument(document);
 }
 
 class ZoneinfoDocumentSymbolProvider implements vscode.DocumentSymbolProvider {

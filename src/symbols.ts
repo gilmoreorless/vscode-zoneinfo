@@ -41,13 +41,17 @@ export function getForDocument(document: vscode.TextDocument): Thenable<ZoneSymb
   } else {
     console.log(`  (cache has nothing)`);
   }
-  let symbols;
   if (shouldParse) {
-    symbols = parser.parseDocument(document);
-    cache.setForDocument(document, symbols);
-  } else {
-    symbols = fileCache.symbols;
+    return cacheDocument(document);
   }
+  return Promise.resolve(fileCache.symbols);
+}
+
+export function cacheDocument(document: vscode.TextDocument): Thenable<ZoneSymbol[]> {
+  console.log(`--cacheDocument: ${document.fileName}--`);
+  const symbols = parser.parseDocument(document);
+  console.log(`  (found ${symbols.length} symbols)`);
+  cache.setForDocument(document, symbols);
   return Promise.resolve(symbols);
 }
 
@@ -85,6 +89,10 @@ export function getSpanForDocumentPosition(document: vscode.TextDocument, positi
     }
     return null;
   });
+}
+
+export function markDocumentDirty(document: vscode.TextDocument) {
+  cache.setDocumentDirtyState(document, true);
 }
 
 export function unique(symbols: ZoneSymbol[]): ZoneSymbol[] {
