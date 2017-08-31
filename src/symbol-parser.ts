@@ -52,7 +52,6 @@ function tokensToReferences(tokens: string[], nameField: number, linkField?: num
   return { name, link };
 }
 
-// TODO: Make this work for multi-line zones
 function parseLine(document: vscode.TextDocument, lineNumber: number): ZoneSymbol {
   const line = document.lineAt(lineNumber);
   const text = line.text;
@@ -83,7 +82,9 @@ function parseLine(document: vscode.TextDocument, lineNumber: number): ZoneSymbo
   return null;
 }
 
-function parseExtraZoneLines(document: vscode.TextDocument, lineNumber: number, symbol: ZoneSymbol): number {
+function parseExtraZoneLines(
+  document: vscode.TextDocument, lineNumber: number, symbol: ZoneSymbol
+): number {
   let count = 0;
   while (true) {
     const text = document.lineAt(lineNumber).text;
@@ -93,7 +94,9 @@ function parseExtraZoneLines(document: vscode.TextDocument, lineNumber: number, 
     const tokens = text.split(rWhitespaceCapture);
     const refs = tokensToReferences(tokens, null, 2);
     if (refs.link) {
-      symbol.references.push(ZoneSymbol.textSpanFromLineReference(document, lineNumber, refs.link));
+      symbol.references.push(
+        ZoneSymbol.textSpanFromLineReference(document, lineNumber, refs.link)
+      );
     }
     lineNumber++;
     count++;
@@ -101,8 +104,6 @@ function parseExtraZoneLines(document: vscode.TextDocument, lineNumber: number, 
 }
 
 export function parseDocument(document: vscode.TextDocument): ZoneSymbol[] {
-  console.log(`--parseDocument: ${document.fileName}--`);
-  let _start = Date.now();
   const lineCount = document.lineCount;
   let symbols = [];
   for (let i = 0; i < lineCount; i++) {
@@ -114,25 +115,18 @@ export function parseDocument(document: vscode.TextDocument): ZoneSymbol[] {
       }
     }
   }
-  console.log(`  TOOK ${Date.now() - _start}ms`);
   return symbols;
 }
 
 type DocumentSymbols = { file: vscode.Uri, symbols: ZoneSymbol[] };
 
 export async function parseCurrentWorkspace(): Promise<DocumentSymbols[]> {
-  let filenames = `{${PARSEABLE_FILENAMES.join(',')}}`;
-  console.log('--parseCurrentWorkspace: finding ' + filenames);
-  let _start = Date.now();
+  const filenames = `{${PARSEABLE_FILENAMES.join(',')}}`;
   const files: vscode.Uri[] = await vscode.workspace.findFiles(filenames);
-  console.log(`  TOOK ${Date.now() - _start}ms`);
   const docSymbols: DocumentSymbols[] = await Promise.all(files.map(async (file: vscode.Uri) => {
-    console.log(`  (going to parse ${file})`);
     const doc = await vscode.workspace.openTextDocument(file);
     const symbols = parseDocument(doc);
     return { file, symbols };
   }));
-  console.log('--DONE PARSING WORKSPACE--', docSymbols.length);
-  console.log(`  TOOK ${Date.now() - _start}ms`);
   return docSymbols;
 }

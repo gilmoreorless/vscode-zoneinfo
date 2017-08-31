@@ -21,8 +21,7 @@ export function clearCache() {
 }
 
 export async function getForCurrentWorkspace(): Promise<ZoneSymbol[]> {
-  let symbols = cache.getForCurrentWorkspace();
-  console.log(`  (cache has ${symbols ? symbols.length : 'nothing'})`);
+  const symbols = cache.getForCurrentWorkspace();
   if (symbols === null) {
     return cacheCurrentWorkspace();
   }
@@ -30,17 +29,8 @@ export async function getForCurrentWorkspace(): Promise<ZoneSymbol[]> {
 }
 
 export async function getForDocument(document: vscode.TextDocument): Promise<ZoneSymbol[]> {
-  let fileCache = cache.getForDocument(document);
-  console.log(`--getForDocument: ${document.fileName}--`);
-  let shouldParse = !fileCache || fileCache.isDirty;
-  if (fileCache) {
-    console.log(`  (cache has ${fileCache.symbols.length})`);
-    if (fileCache.isDirty) {
-      console.log(`  (...but file is dirty)`);
-    }
-  } else {
-    console.log(`  (cache has nothing)`);
-  }
+  const fileCache = cache.getForDocument(document);
+  const shouldParse = !fileCache || fileCache.isDirty;
   if (shouldParse) {
     return cacheDocument(document);
   }
@@ -48,9 +38,7 @@ export async function getForDocument(document: vscode.TextDocument): Promise<Zon
 }
 
 export async function cacheDocument(document: vscode.TextDocument): Promise<ZoneSymbol[]> {
-  console.log(`--cacheDocument: ${document.fileName}--`);
   const symbols = parser.parseDocument(document);
-  console.log(`  (found ${symbols.length} symbols)`);
   cache.setForDocument(document, symbols);
   return Promise.resolve(symbols);
 }
@@ -62,17 +50,17 @@ export async function getForName(name: string): Promise<ZoneSymbol[]> {
 
 export async function getSpanLinksToName(name: string): Promise<ZoneSymbolTextSpan[]> {
   const allSymbols = await getForCurrentWorkspace();
-  let _start = Date.now();
-  let res = allSymbols.map((symbol) => {
+  return allSymbols.map((symbol) => {
     if (symbol.name.text === name) {
       return [symbol.name];
     }
     return symbol.references.filter(ref => ref.text === name);
   }).reduce((all, spans) => all.concat(spans), [])
-  return res;
 }
 
-export async function getSpanForDocumentPosition(document: vscode.TextDocument, position: vscode.Position): Promise<ZoneSymbolTextSpan> {
+export async function getSpanForDocumentPosition(
+  document: vscode.TextDocument, position: vscode.Position
+): Promise<ZoneSymbolTextSpan> {
   const docSymbols = await getForDocument(document);
   for (let symbol of docSymbols) {
     if (symbol.name.location.range.contains(position)) {
@@ -94,7 +82,7 @@ export function markDocumentDirty(document: vscode.TextDocument) {
 export function unique(symbols: ZoneSymbol[]): ZoneSymbol[] {
   let used = new Set();
   return symbols.filter(symbol => {
-    let key = [symbol.type, symbol.name.text].join(':');
+    const key = [symbol.type, symbol.name.text].join(':');
     if (used.has(key)) {
       return false;
     }

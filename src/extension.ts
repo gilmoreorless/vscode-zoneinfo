@@ -7,7 +7,6 @@ import { ZoneSymbol, ZoneSymbolTextSpan } from './zone-symbol';
 const ZONEINFO_MODE = 'zoneinfo';
 
 export function activate(context: vscode.ExtensionContext) {
-  console.log('\n==activate==', context);
   context.subscriptions.push(
     vscode.languages.registerDocumentSymbolProvider(ZONEINFO_MODE, new ZoneinfoDocumentSymbolProvider()),
     vscode.languages.registerWorkspaceSymbolProvider(new ZoneinfoWorkspaceSymbolProvider()),
@@ -20,28 +19,22 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 export function deactivate() {
-  console.log('\n==deactivate==');
   symbols.clearCache();
 }
 
 function documentChanged(e: vscode.TextDocumentChangeEvent) {
-  console.log('\n==onDidChangeTextDocument==');
-  console.log(e.document, e.contentChanges);
   const { document, contentChanges } = e;
   if (document.languageId === 'zoneinfo' && contentChanges.length === 0) {
-    console.log(`  (setting document dirty state)`);
     symbols.markDocumentDirty(document);
   }
 }
 
 function documentSaved(document: vscode.TextDocument) {
-  console.log('\n==onDidSaveTextDocument==');
-  console.log(document);
   symbols.cacheDocument(document);
 }
 
-class ZoneinfoDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
 
+class ZoneinfoDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
   public toSymbolInformation(allSymbols: ZoneSymbol[]): vscode.SymbolInformation[] {
     return allSymbols.map(s => s.toSymbolInformation());
   }
@@ -53,16 +46,13 @@ class ZoneinfoDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
   public async provideDocumentSymbols(
     document: vscode.TextDocument, token: vscode.CancellationToken
   ): Promise<vscode.SymbolInformation[]> {
-
-    console.log('\n==provideDocumentSymbols==');
     const docSymbols = await symbols.getForDocument(document);
     return this.uniqueSymbols(docSymbols);
   }
-
 }
 
-class ZoneinfoWorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider {
 
+class ZoneinfoWorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider {
   private symbolProvider: ZoneinfoDocumentSymbolProvider;
 
   public constructor() {
@@ -78,7 +68,6 @@ class ZoneinfoWorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider 
     // Let VS Code handle the sorting by relevance.
     const queryLower = query.toLocaleLowerCase();
     const queryChars = [...queryLower];
-    // TODO: Memo-ise this output?
     const doesMatch = (name: string) => {
       let search = name.toLocaleLowerCase();
       if (queryLower.includes(search)) {
@@ -101,22 +90,16 @@ class ZoneinfoWorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider 
   public async provideWorkspaceSymbols(
     query: string, token: vscode.CancellationToken
   ): Promise<vscode.SymbolInformation[]> {
-    
-    console.log('\n==provideWorkspaceSymbols==');
     const allSymbols = await symbols.getForCurrentWorkspace();
     return this.filteredSymbols(allSymbols, query);
   }
-
 }
 
-class ZoneinfoDefinitionProvider implements vscode.DefinitionProvider {
 
+class ZoneinfoDefinitionProvider implements vscode.DefinitionProvider {
   public async provideDefinition(
     document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken
   ): Promise<vscode.Definition> {
-
-    console.log('\n==provideDefinition==');
-    console.log(document.fileName, JSON.stringify(position));
     const span = await symbols.getSpanForDocumentPosition(document, position);
     if (span === null) {
       return null;
@@ -124,17 +107,13 @@ class ZoneinfoDefinitionProvider implements vscode.DefinitionProvider {
     const nameSymbols = await symbols.getForName(span.text);
     return nameSymbols.map(s => s.name.location);
   }
-
 }
 
-class ZoneinfoReferenceProvider implements vscode.ReferenceProvider {
 
+class ZoneinfoReferenceProvider implements vscode.ReferenceProvider {
   public async provideReferences(
     document: vscode.TextDocument, position: vscode.Position, context: vscode.ReferenceContext, token: vscode.CancellationToken
   ): Promise<vscode.Location[]> {
-
-    console.log('\n==provideReferences==');
-    console.log(document.fileName, JSON.stringify(position), context.includeDeclaration);
     const span = await symbols.getSpanForDocumentPosition(document, position);
     if (span === null) {
       return null;
@@ -145,5 +124,4 @@ class ZoneinfoReferenceProvider implements vscode.ReferenceProvider {
     }
     return spans.map(s => s.location);
   }
-
 }

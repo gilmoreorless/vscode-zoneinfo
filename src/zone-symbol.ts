@@ -20,9 +20,7 @@ export class ZoneSymbol {
   parentText?: string;
   references: ZoneSymbolTextSpan[];
 
-  public constructor(
-    type: ZoneSymbolType, name: ZoneSymbolTextSpan, link?: ZoneSymbolTextSpan
-  ) {
+  public constructor(type: ZoneSymbolType, name: ZoneSymbolTextSpan, link?: ZoneSymbolTextSpan) {
     this.type = type;
     this.name = name;
     this.references = [];
@@ -53,34 +51,3 @@ export class ZoneSymbol {
     };
   }
 }
-
-/*
-DEFINITIONS
-
-<document symbols>
-
-registerDocumentSymbolProvider() -> DocumentSymbolProvider.provideDocumentSymbols() ->
-SymbolInformation[] = {
-  name: string;
-  containerName: string;
-  location: Location;
-  kind: enum;
-}
-
-<workspace symbols>
-
-registerWorkspaceSymbolProvider() -> WorkspaceSymbolProvider.provideWorkspaceSymbols() ->
-SymbolInformation[]
-
-<definitions>
-
-registerDefinitionProvider() -> DefinitionProvider.provideDefinition() ->
-Definition = Location | Location[]
-
-<references>
-
-registerReferenceProvider() -> ReferenceProvider.provideReferences() ->
-Location[]
-*/
-
-
