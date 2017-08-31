@@ -120,22 +120,19 @@ export function parseDocument(document: vscode.TextDocument): ZoneSymbol[] {
 
 type DocumentSymbols = { file: vscode.Uri, symbols: ZoneSymbol[] };
 
-export function parseCurrentWorkspace(): Thenable<DocumentSymbols[]> {
+export async function parseCurrentWorkspace(): Promise<DocumentSymbols[]> {
   let filenames = `{${PARSEABLE_FILENAMES.join(',')}}`;
   console.log('--parseCurrentWorkspace: finding ' + filenames);
   let _start = Date.now();
-  return vscode.workspace.findFiles(filenames).then((files: vscode.Uri[]) => {
-    console.log(`  TOOK ${Date.now() - _start}ms`);
-    return Promise.all(files.map((file: vscode.Uri) => {
-      console.log(`  (going to parse ${file})`);
-      return vscode.workspace.openTextDocument(file).then((doc: vscode.TextDocument): DocumentSymbols => {
-        let symbols = parseDocument(doc);
-        return { file, symbols };
-      });
-    }))
-  }).then((results: DocumentSymbols[]): DocumentSymbols[] => {
-    console.log('--DONE PARSING WORKSPACE--', results.length);
-    console.log(`  TOOK ${Date.now() - _start}ms`);
-    return results;
-  });
+  const files: vscode.Uri[] = await vscode.workspace.findFiles(filenames);
+  console.log(`  TOOK ${Date.now() - _start}ms`);
+  const docSymbols: DocumentSymbols[] = await Promise.all(files.map(async (file: vscode.Uri) => {
+    console.log(`  (going to parse ${file})`);
+    const doc = await vscode.workspace.openTextDocument(file);
+    const symbols = parseDocument(doc);
+    return { file, symbols };
+  }));
+  console.log('--DONE PARSING WORKSPACE--', docSymbols.length);
+  console.log(`  TOOK ${Date.now() - _start}ms`);
+  return docSymbols;
 }

@@ -42,20 +42,21 @@ function documentSaved(document: vscode.TextDocument) {
 
 class ZoneinfoDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
 
-  public toSymbolInformation(allSymbols: ZoneSymbol[]): vscode.ProviderResult<vscode.SymbolInformation[]> {
+  public toSymbolInformation(allSymbols: ZoneSymbol[]): vscode.SymbolInformation[] {
     return allSymbols.map(s => s.toSymbolInformation());
   }
 
-  public uniqueSymbols(allSymbols: ZoneSymbol[]): vscode.ProviderResult<vscode.SymbolInformation[]> {
+  public uniqueSymbols(allSymbols: ZoneSymbol[]): vscode.SymbolInformation[] {
     return this.toSymbolInformation(symbols.unique(allSymbols));
   }
 
-  public provideDocumentSymbols(
+  public async provideDocumentSymbols(
     document: vscode.TextDocument, token: vscode.CancellationToken
-  ): vscode.ProviderResult<vscode.SymbolInformation[]> {
+  ): Promise<vscode.SymbolInformation[]> {
 
     console.log('\n==provideDocumentSymbols==');
-    return symbols.getForDocument(document).then(s => this.uniqueSymbols(s));
+    const docSymbols = await symbols.getForDocument(document);
+    return this.uniqueSymbols(docSymbols);
   }
 
 }
@@ -68,7 +69,7 @@ class ZoneinfoWorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider 
     this.symbolProvider = new ZoneinfoDocumentSymbolProvider();
   }
 
-  public filteredSymbols(allSymbols: ZoneSymbol[], query: string): vscode.ProviderResult<vscode.SymbolInformation[]> {
+  public filteredSymbols(allSymbols: ZoneSymbol[], query: string): vscode.SymbolInformation[] {
     const uniqueSymbols = symbols.unique(allSymbols);
     if (!query.length) {
       return this.symbolProvider.toSymbolInformation(uniqueSymbols);
@@ -97,54 +98,52 @@ class ZoneinfoWorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider 
     return this.symbolProvider.toSymbolInformation(filtered);
   }
 
-  // TODO: Test this with single files rather than the tz folder
-  public provideWorkspaceSymbols(
+  public async provideWorkspaceSymbols(
     query: string, token: vscode.CancellationToken
-  ): vscode.ProviderResult<vscode.SymbolInformation[]> {
+  ): Promise<vscode.SymbolInformation[]> {
     
     console.log('\n==provideWorkspaceSymbols==');
-    return symbols.getForCurrentWorkspace().then(s => this.filteredSymbols(s, query));
+    const allSymbols = await symbols.getForCurrentWorkspace();
+    return this.filteredSymbols(allSymbols, query);
   }
 
 }
 
 class ZoneinfoDefinitionProvider implements vscode.DefinitionProvider {
 
-  public provideDefinition(
+  public async provideDefinition(
     document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken
-  ): vscode.ProviderResult<vscode.Definition> {
+  ): Promise<vscode.Definition> {
 
     console.log('\n==provideDefinition==');
     console.log(document.fileName, JSON.stringify(position));
-    return symbols.getSpanForDocumentPosition(document, position).then((span: ZoneSymbolTextSpan) => {
-      if (span === null) {
-        return null;
-      }
-      return symbols.getForName(span.text).then(allSymbols => allSymbols.map(s => s.name.location));
-    });
+    const span = await symbols.getSpanForDocumentPosition(document, position);
+    if (span === null) {
+      return null;
+    }
+    const nameSymbols = await symbols.getForName(span.text);
+    return nameSymbols.map(s => s.name.location);
   }
 
 }
 
 class ZoneinfoReferenceProvider implements vscode.ReferenceProvider {
 
-  public provideReferences(
+  public async provideReferences(
     document: vscode.TextDocument, position: vscode.Position, context: vscode.ReferenceContext, token: vscode.CancellationToken
-  ): vscode.ProviderResult<vscode.Location[]> {
+  ): Promise<vscode.Location[]> {
 
     console.log('\n==provideReferences==');
     console.log(document.fileName, JSON.stringify(position), context.includeDeclaration);
-    return symbols.getSpanForDocumentPosition(document, position).then((span: ZoneSymbolTextSpan): Thenable<vscode.Location[]> => {
-      if (span === null) {
-        return null;
-      }
-      return symbols.getSpanLinksToName(span.text).then((spans) => {
-        if (!context.includeDeclaration) {
-          spans = spans.filter(s => s !== span);
-        }
-        return spans.map(s => s.location);
-      });
-    });
+    const span = await symbols.getSpanForDocumentPosition(document, position);
+    if (span === null) {
+      return null;
+    }
+    let spans = await symbols.getSpanLinksToName(span.text);
+    if (!context.includeDeclaration) {
+      spans = spans.filter(s => s !== span);
+    }
+    return spans.map(s => s.location);
   }
 
 }

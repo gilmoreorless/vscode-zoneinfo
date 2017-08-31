@@ -5,31 +5,31 @@ import * as cache from './symbol-cache';
 import * as parser from './symbol-parser';
 import { ZoneSymbol, ZoneSymbolTextSpan } from './zone-symbol';
 
-export function cacheCurrentWorkspace(): Thenable<ZoneSymbol[]> {
-  return parser.parseCurrentWorkspace().then((fileSymbols) => {
-    let allSymbols = [];
-    fileSymbols.forEach(({ file, symbols }) => {
-      cache.setForDocument(file, symbols);
-      allSymbols = allSymbols.concat(symbols);
-    })
-    cache.setForCurrentWorkspace(allSymbols);
-    return allSymbols;
-  });
+export async function cacheCurrentWorkspace(): Promise<ZoneSymbol[]> {
+  const fileSymbols = await parser.parseCurrentWorkspace();
+  let allSymbols = [];
+  fileSymbols.forEach(({ file, symbols }) => {
+    cache.setForDocument(file, symbols);
+    allSymbols = allSymbols.concat(symbols);
+  })
+  cache.setForCurrentWorkspace(allSymbols);
+  return allSymbols;
 }
 
 export function clearCache() {
   cache.clear();
 }
 
-export function getForCurrentWorkspace(): Thenable<ZoneSymbol[]> {
+export async function getForCurrentWorkspace(): Promise<ZoneSymbol[]> {
   let symbols = cache.getForCurrentWorkspace();
   console.log(`  (cache has ${symbols ? symbols.length : 'nothing'})`);
-  return symbols !== null ?
-    Promise.resolve(symbols) :
-    cacheCurrentWorkspace();
+  if (symbols === null) {
+    return cacheCurrentWorkspace();
+  }
+  return Promise.resolve(symbols);
 }
 
-export function getForDocument(document: vscode.TextDocument): Thenable<ZoneSymbol[]> {
+export async function getForDocument(document: vscode.TextDocument): Promise<ZoneSymbol[]> {
   let fileCache = cache.getForDocument(document);
   console.log(`--getForDocument: ${document.fileName}--`);
   let shouldParse = !fileCache || fileCache.isDirty;
@@ -47,7 +47,7 @@ export function getForDocument(document: vscode.TextDocument): Thenable<ZoneSymb
   return Promise.resolve(fileCache.symbols);
 }
 
-export function cacheDocument(document: vscode.TextDocument): Thenable<ZoneSymbol[]> {
+export async function cacheDocument(document: vscode.TextDocument): Promise<ZoneSymbol[]> {
   console.log(`--cacheDocument: ${document.fileName}--`);
   const symbols = parser.parseDocument(document);
   console.log(`  (found ${symbols.length} symbols)`);
@@ -55,40 +55,36 @@ export function cacheDocument(document: vscode.TextDocument): Thenable<ZoneSymbo
   return Promise.resolve(symbols);
 }
 
-export function getForName(name: string): Thenable<ZoneSymbol[]> {
-  // TODO: Maybe cache this
-  return getForCurrentWorkspace().then((allSymbols) => {
-    return allSymbols.filter(s => s.name.text === name);
-  });
+export async function getForName(name: string): Promise<ZoneSymbol[]> {
+  const allSymbols = await getForCurrentWorkspace();
+  return allSymbols.filter(s => s.name.text === name);
 }
 
-export function getSpanLinksToName(name: string): Thenable<ZoneSymbolTextSpan[]> {
-  return getForCurrentWorkspace().then((allSymbols: ZoneSymbol[]) => {
-    let _start = Date.now();
-    let res = allSymbols.map((symbol) => {
-      if (symbol.name.text === name) {
-        return [symbol.name];
-      }
-      return symbol.references.filter(ref => ref.text === name);
-    }).reduce((all, spans) => all.concat(spans), [])
-    return res;
-  });
+export async function getSpanLinksToName(name: string): Promise<ZoneSymbolTextSpan[]> {
+  const allSymbols = await getForCurrentWorkspace();
+  let _start = Date.now();
+  let res = allSymbols.map((symbol) => {
+    if (symbol.name.text === name) {
+      return [symbol.name];
+    }
+    return symbol.references.filter(ref => ref.text === name);
+  }).reduce((all, spans) => all.concat(spans), [])
+  return res;
 }
 
-export function getSpanForDocumentPosition(document: vscode.TextDocument, position: vscode.Position): Thenable<ZoneSymbolTextSpan> {
-  return getForDocument(document).then((symbols) => {
-    for (let symbol of symbols) {
-      if (symbol.name.location.range.contains(position)) {
-        return symbol.name;
-      }
-      for (let ref of symbol.references) {
-        if (ref.location.range.contains(position)) {
-          return ref;
-        }
+export async function getSpanForDocumentPosition(document: vscode.TextDocument, position: vscode.Position): Promise<ZoneSymbolTextSpan> {
+  const docSymbols = await getForDocument(document);
+  for (let symbol of docSymbols) {
+    if (symbol.name.location.range.contains(position)) {
+      return symbol.name;
+    }
+    for (let ref of symbol.references) {
+      if (ref.location.range.contains(position)) {
+        return ref;
       }
     }
-    return null;
-  });
+  }
+  return null;
 }
 
 export function markDocumentDirty(document: vscode.TextDocument) {
