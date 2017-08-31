@@ -1,7 +1,7 @@
 'use strict';
 
 import * as vscode from 'vscode';
-import { ZoneSymbol, ZoneSymbolType, ZoneSymbolTextSpan } from './zone-symbol';
+import { ZoneSymbol, ZoneSymbolLineRef, ZoneSymbolTextSpan, ZoneSymbolType } from './zone-symbol';
 
 export const PARSEABLE_FILENAMES = [
   'africa',
@@ -28,18 +28,23 @@ function sumLengths(arr: string[], beforeIndex: number): number {
   return arr.slice(0, beforeIndex).reduce((sum, str) => sum + str.length, 0);
 }
 
-function tokensToReferences(tokens: string[], nameField: number, linkField?: number) {
+type NameLinkRefs = {
+  name: ZoneSymbolLineRef;
+  link: ZoneSymbolLineRef;
+};
+
+function tokensToReferences(tokens: string[], nameField: number, linkField?: number): NameLinkRefs {
   let fieldIndex = -1;
   let charIndex = 0;
-  let name, link;
+  let name: ZoneSymbolLineRef, link: ZoneSymbolLineRef;
   tokens.forEach((token) => {
     if (!rWhitespaceOnly.test(token)) {
       fieldIndex++;
       if (nameField !== null && fieldIndex === nameField) {
-        name = { text: token, char: charIndex };
+        name = { text: token, index: charIndex };
       }
       if (linkField !== undefined && fieldIndex === linkField && token !== '-') {
-        link = { text: token, char: charIndex };
+        link = { text: token, index: charIndex };
       }
     }
     charIndex += token.length;
@@ -57,8 +62,8 @@ function parseLine(document: vscode.TextDocument, lineNumber: number): ZoneSymbo
   }
 
   const tokens = text.split(rWhitespaceCapture);
-  const type = tokens[0];
-  let refs;
+  const type = <ZoneSymbolType>tokens[0];
+  let refs: NameLinkRefs;
   switch (type) {
     case 'Zone': refs = tokensToReferences(tokens, 1, 3); break;
     case 'Rule': refs = tokensToReferences(tokens, 1); break;
@@ -66,7 +71,7 @@ function parseLine(document: vscode.TextDocument, lineNumber: number): ZoneSymbo
   }
   if (refs) {
     let symbol = new ZoneSymbol(
-      <ZoneSymbolType>type,
+      type,
       ZoneSymbol.textSpanFromLineReference(document, lineNumber, refs.name),
       ZoneSymbol.textSpanFromLineReference(document, lineNumber, refs.link)
     );

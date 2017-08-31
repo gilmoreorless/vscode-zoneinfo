@@ -4,6 +4,11 @@ import * as vscode from 'vscode';
 
 export type ZoneSymbolType = 'Zone' | 'Rule' | 'Link';
 
+export type ZoneSymbolLineRef = {
+  text: string;
+  index: number;
+};
+
 export type ZoneSymbolTextSpan = {
   text: string;
   location: vscode.Location;
@@ -33,14 +38,14 @@ export class ZoneSymbol {
   }
 
   static textSpanFromLineReference(
-    document: vscode.TextDocument, line: number, ref?: { text: string; char: number }
+    document: vscode.TextDocument, line: number, ref?: ZoneSymbolLineRef
   ): ZoneSymbolTextSpan {
     if (!ref) {
       return null;
     }
     const range = new vscode.Range(
-      line, ref.char,
-      line, ref.char + ref.text.length
+      line, ref.index,
+      line, ref.index + ref.text.length
     );
     return {
       text: ref.text,
