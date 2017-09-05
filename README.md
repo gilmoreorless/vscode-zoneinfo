@@ -1,10 +1,14 @@
 # VSCode zoneinfo
 
-A [Visual Studio Code](https://code.visualstudio.com/) extension that adds syntax highlighting for [IANA time zone database](http://iana.org/time-zones) files (a.k.a. zoneinfo files).
+A [Visual Studio Code](https://code.visualstudio.com/) extension that adds syntax highlighting and smart navigation for [IANA time zone database](http://iana.org/time-zones) files (a.k.a. zoneinfo files).
 
 _Also available as a [package for Sublime Text](https://github.com/gilmoreorless/sublime-zoneinfo)._
 
-## Features
+## Installation
+
+Find it as [Zoneinfo](https://marketplace.visualstudio.com/items?itemName=gilmoreorless.vscode-zoneinfo) in the Visual Studio Marketplace. Within VSCode you can search for `Zoneinfo` in the extensions sidebar.
+
+## Syntax highlighting
 
 Syntax highlighting is provided for the raw time zone definition files:
 
@@ -34,9 +38,35 @@ As well as associated metadata files:
 
 ![Preview of syntax highlighted file](images/preview-stack-horizontal.png)
 
-## Installation
+## Definition navigation
 
-Find it as [Zoneinfo](https://marketplace.visualstudio.com/items?itemName=gilmoreorless.vscode-zoneinfo) in the Visual Studio Marketplace. Within VSCode you can search for `Zoneinfo` in the extensions sidebar.
+This plugin provides support for smart navigation within the time zone definition files (listed above).
+
+### Go to symbol
+
+Use the [go to symbol](https://code.visualstudio.com/docs/editor/editingevolved#_go-to-symbol) feature for a single file, or the whole `tz` directory.
+“Symbol” here means any `Link`, `Rule`, or `Zone` definition.
+
+Find symbols within a single file:
+
+![Example of using the “go to document symbol” feature](images/feature-find-doc-symbols.png)
+
+Find symbols within the `tz` directory/workspace:
+
+![Example of using the “go to workspace symbol” feature](images/feature-find-all-symbols.png)
+
+### Go to definition
+
+Click-through support between definitions is handled with the [go to definition](https://code.visualstudio.com/docs/editor/editingevolved#_go-to-definition) feature.
+Specifically, you are able to go from a `Link` to a `Zone`, and from a `Zone` to a `Rule`.
+
+![Example of using the “go to definition” feature](images/feature-peek-definition.png)
+
+### Find all references
+
+This is the reverse operation of “go to definition”. Find all references across the workspace to a `Rule` or `Zone` definition.
+
+![Example of using the “find all references” feature](images/feature-find-all-references.png)
 
 ## Development
 
