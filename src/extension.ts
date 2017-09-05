@@ -70,7 +70,7 @@ class ZoneinfoWorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider 
     const queryChars = [...queryLower];
     const doesMatch = (name: string) => {
       let search = name.toLocaleLowerCase();
-      if (queryLower.includes(search)) {
+      if (search.includes(queryLower)) {
         return true;
       }
       for (let char of queryChars) {
