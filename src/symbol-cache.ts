@@ -5,30 +5,46 @@ import { ZoneSymbol } from './zone-symbol';
 
 let fullCache = new Map();
 
-type CacheKey = string | vscode.Uri | vscode.TextDocument;
+type CacheKey = vscode.Uri | vscode.TextDocument;
+
 export type DocumentCache = {
   isDirty: boolean;
   symbols: ZoneSymbol[];
 };
 
+export type FolderCache = {
+  byFile: Map<string, DocumentCache>;
+  all: ZoneSymbol[];
+  isComplete: boolean;
+  hasDirtyFiles: boolean;
+};
+
 
 // ----- Internal helpers -----
 
-function makeKey(file: CacheKey): string {
-  if (typeof file === 'string') {
-    return file;
-  }
+function getUri(file: CacheKey): vscode.Uri {
   if ((<vscode.TextDocument>file).uri) {
     file = (<vscode.TextDocument>file).uri;
   }
-  return file.toString();
+  return <vscode.Uri>file;
 }
 
-function getCacheForWorkspace(workspace?: string) {
-  if (workspace === undefined) {
-    workspace = vscode.workspace.rootPath;
+function makeKey(file: CacheKey): string {
+  return getUri(file).toString();
+}
+
+function getWorkspaceFolderForDocument(document: CacheKey): string | vscode.WorkspaceFolder {
+  // BackCompat(no-multi-root)
+  if (vscode.workspace.getWorkspaceFolder === undefined) {
+    return vscode.workspace.rootPath;
   }
-  let cache = fullCache.get(workspace);
+  // END BackCompat
+  return vscode.workspace.getWorkspaceFolder(getUri(document));
+}
+
+function getCacheForWorkspaceFolder(folder: string | vscode.WorkspaceFolder): FolderCache {
+  const path = typeof folder === 'string' ? folder : folder.uri.toString();
+  let cache: FolderCache = fullCache.get(path);
   if (cache === undefined) {
     cache = {
       byFile: new Map(),
@@ -36,13 +52,23 @@ function getCacheForWorkspace(workspace?: string) {
       isComplete: false,
       hasDirtyFiles: true,
     };
-    fullCache.set(workspace, cache);
+    fullCache.set(path, cache);
   }
   return cache;
 }
 
-function updateAllForWorkspace() {
-  let fullCache = getCacheForWorkspace();
+function getFolderCacheForDocument(key: CacheKey): FolderCache {
+  // BackCompat(no-multi-root)
+  if (vscode.workspace.getWorkspaceFolder === undefined) {
+    return getCacheForWorkspaceFolder(vscode.workspace.rootPath);
+  }
+  // END BackCompat
+  const folder = vscode.workspace.getWorkspaceFolder(getUri(key));
+  return getCacheForWorkspaceFolder(folder);
+}
+
+function updateAllForWorkspaceFolder(folder: string | vscode.WorkspaceFolder): ZoneSymbol[] {
+  let fullCache = getCacheForWorkspaceFolder(folder);
   if (fullCache.isComplete) {
     let allSymbols = [];
     for (let docCache of fullCache.byFile.values()) {
@@ -50,10 +76,15 @@ function updateAllForWorkspace() {
     }
     fullCache.all = allSymbols;
   }
+  return fullCache.all;
+}
+
+function setCacheForCurrentWorkspace(symbols: ZoneSymbol[]) {
+  fullCache.set('[ALL]', symbols);
 }
 
 function setCacheForDocument(key: CacheKey, isDirty: boolean, symbols: ZoneSymbol[]) {
-  getCacheForWorkspace().byFile.set(makeKey(key), { isDirty, symbols });
+  getFolderCacheForDocument(key).byFile.set(makeKey(key), { isDirty, symbols });
 }
 
 
@@ -63,15 +94,30 @@ export function clear() {
   fullCache = new Map();
 }
 
-export function setForCurrentWorkspace(symbols: ZoneSymbol[]) {
-  let cache = getCacheForWorkspace();
+export function updateAllForCurrentWorkspace(): ZoneSymbol[] {
+  let folders = vscode.workspace.workspaceFolders;
+  let allSymbols: ZoneSymbol[] = [];
+  // BackCompat(no-multi-root)
+  if (folders === undefined) {
+    allSymbols = [].concat(getCacheForWorkspaceFolder(vscode.workspace.rootPath).all);
+  } else {
+  // END BackCompat
+    allSymbols = folders.reduce((all: ZoneSymbol[], folder) =>
+      all.concat(getCacheForWorkspaceFolder(folder).all), []);
+  }
+  setCacheForCurrentWorkspace(allSymbols);
+  return allSymbols;
+}
+
+export function setForWorkspaceFolder(folder: string, symbols: ZoneSymbol[]) {
+  let cache = getCacheForWorkspaceFolder(folder);
   cache.all = symbols;
   cache.isComplete = true;
 }
 
 export function setForDocument(key: CacheKey, symbols: ZoneSymbol[]) {
   setCacheForDocument(key, false, symbols);
-  updateAllForWorkspace();
+  updateAllForWorkspaceFolder(getWorkspaceFolderForDocument(key));
 }
 
 export function setDocumentDirtyState(key: CacheKey, isDirty: boolean) {

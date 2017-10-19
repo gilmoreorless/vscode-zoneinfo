@@ -6,14 +6,16 @@ import * as parser from './symbol-parser';
 import { ZoneSymbol, ZoneSymbolTextSpan } from './zone-symbol';
 
 export async function cacheCurrentWorkspace(): Promise<ZoneSymbol[]> {
-  const fileSymbols = await parser.parseCurrentWorkspace();
-  let allSymbols = [];
-  fileSymbols.forEach(({ file, symbols }) => {
-    cache.setForDocument(file, symbols);
-    allSymbols = allSymbols.concat(symbols);
-  })
-  cache.setForCurrentWorkspace(allSymbols);
-  return allSymbols;
+  const folders = await parser.parseCurrentWorkspace();
+  folders.forEach(({ path, documents }) => {
+    let folderSymbols = [];
+    documents.forEach(({ file, symbols }) => {
+      cache.setForDocument(file, symbols);
+      folderSymbols = folderSymbols.concat(symbols);
+    });
+    cache.setForWorkspaceFolder(path, folderSymbols);
+  });
+  return cache.updateAllForCurrentWorkspace();
 }
 
 export function clearCache() {

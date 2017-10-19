@@ -119,14 +119,41 @@ export function parseDocument(document: vscode.TextDocument): ZoneSymbol[] {
 }
 
 type DocumentSymbols = { file: vscode.Uri, symbols: ZoneSymbol[] };
+type FolderSymbols = { path: string, documents: DocumentSymbols[] };
 
-export async function parseCurrentWorkspace(): Promise<DocumentSymbols[]> {
+export async function parseCurrentWorkspace(): Promise<FolderSymbols[]> {
+  const folders = vscode.workspace.workspaceFolders;
+  // BackCompat(no-multi-root)
+  if (folders === undefined) {
+    const rootPath = vscode.workspace.rootPath;
+    return [await parseWorkspaceFolder(rootPath)];
+  }
+  // END BackCompat
+  if (!folders.length) {
+    return [];
+  }
+  return await Promise.all(folders.map(await parseWorkspaceFolder));
+}
+
+export async function parseWorkspaceFolder(folder: string | vscode.WorkspaceFolder): Promise<FolderSymbols> {
   const filenames = `{${PARSEABLE_FILENAMES.join(',')}}`;
-  const files: vscode.Uri[] = await vscode.workspace.findFiles(filenames);
+  // BackCompat(no-multi-root)
+  let findArg: vscode.GlobPattern = filenames;
+  if (vscode.RelativePattern !== undefined) {
+    findArg = new vscode.RelativePattern(folder, filenames);
+  }
+  // END BackCompat
+  const files: vscode.Uri[] = await vscode.workspace.findFiles(findArg);
   const docSymbols: DocumentSymbols[] = await Promise.all(files.map(async (file: vscode.Uri) => {
     const doc = await vscode.workspace.openTextDocument(file);
     const symbols = parseDocument(doc);
     return { file, symbols };
   }));
-  return docSymbols;
+  // BackCompat(no-multi-root)
+  const path = typeof folder === 'string' ? folder : folder.uri.toString();
+  // END BackCompat
+  return {
+    path,
+    documents: docSymbols,
+  };
 }
