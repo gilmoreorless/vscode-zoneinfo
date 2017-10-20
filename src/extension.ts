@@ -104,7 +104,7 @@ class ZoneinfoDefinitionProvider implements vscode.DefinitionProvider {
     if (span === null) {
       return null;
     }
-    const nameSymbols = await symbols.getForName(span.text);
+    const nameSymbols = await symbols.getForSpan(span);
     return nameSymbols.map(s => s.name.location);
   }
 }
@@ -118,7 +118,7 @@ class ZoneinfoReferenceProvider implements vscode.ReferenceProvider {
     if (span === null) {
       return null;
     }
-    let spans = await symbols.getSpanLinksToName(span.text);
+    let spans = await symbols.getSpanLinksToName(span);
     if (!context.includeDeclaration) {
       spans = spans.filter(s => s !== span);
     }

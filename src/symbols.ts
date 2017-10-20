@@ -45,18 +45,20 @@ export async function cacheDocument(document: vscode.TextDocument): Promise<Zone
   return Promise.resolve(symbols);
 }
 
-export async function getForName(name: string): Promise<ZoneSymbol[]> {
-  const allSymbols = await getForCurrentWorkspace();
-  return allSymbols.filter(s => s.name.text === name);
+export async function getForSpan(span: ZoneSymbolTextSpan): Promise<ZoneSymbol[]> {
+  const folder = cache.getWorkspaceFolderForDocument(span.location.uri);
+  const allSymbols = await cache.getForWorkspaceFolder(folder);
+  return allSymbols.filter(s => s.name.text === span.text);
 }
 
-export async function getSpanLinksToName(name: string): Promise<ZoneSymbolTextSpan[]> {
-  const allSymbols = await getForCurrentWorkspace();
+export async function getSpanLinksToName(span: ZoneSymbolTextSpan): Promise<ZoneSymbolTextSpan[]> {
+  const folder = cache.getWorkspaceFolderForDocument(span.location.uri);
+  const allSymbols = await cache.getForWorkspaceFolder(folder);
   return allSymbols.map((symbol) => {
-    if (symbol.name.text === name) {
+    if (symbol.name.text === span.text) {
       return [symbol.name];
     }
-    return symbol.references.filter(ref => ref.text === name);
+    return symbol.references.filter(ref => ref.text === span.text);
   }).reduce((all, spans) => all.concat(spans), [])
 }
 
@@ -84,7 +86,7 @@ export function markDocumentDirty(document: vscode.TextDocument) {
 export function unique(symbols: ZoneSymbol[]): ZoneSymbol[] {
   let used = new Set();
   return symbols.filter(symbol => {
-    const key = [symbol.type, symbol.name.text].join(':');
+    const key = [symbol.type, symbol.name.text, symbol.name.location.uri.toString()].join(':');
     if (used.has(key)) {
       return false;
     }
