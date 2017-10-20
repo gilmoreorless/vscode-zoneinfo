@@ -32,19 +32,22 @@ function makeKey(file: CacheKey): string {
   return getUri(file).toString();
 }
 
+function folderPath(folder: string | vscode.WorkspaceFolder): string {
+  if (folder === undefined) {
+    return '[NO FOLDER]';
+  }
+  if (typeof folder === 'string') {
+    return folder;
+  }
+  return folder.uri.toString();
+}
+
 function getCacheForCurrentWorkspace(): FolderCache {
   return fullCache.get('[ALL]') || {};
 }
 
 function getCacheForWorkspaceFolder(folder: string | vscode.WorkspaceFolder): FolderCache {
-  let path: string;
-  if (folder === undefined) {
-    path = '[NO FOLDER]';
-  } else if (typeof folder === 'string') {
-    path = folder;
-  } else {
-    path = folder.uri.toString();
-  }
+  const path = folderPath(folder);
   let cache: FolderCache = fullCache.get(path);
   if (cache === undefined) {
     cache = {
@@ -95,7 +98,11 @@ function setCacheForDocument(key: CacheKey, isDirty: boolean, symbols: ZoneSymbo
 // ----- Public API -----
 
 export function clear() {
-  fullCache = new Map();
+  fullCache.clear();
+}
+
+export function clearForWorkspaceFolder(folder: string | vscode.WorkspaceFolder) {
+  fullCache.delete(folderPath(folder));
 }
 
 export function getWorkspaceFolderForDocument(document: CacheKey): string | vscode.WorkspaceFolder {

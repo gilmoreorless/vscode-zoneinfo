@@ -18,8 +18,27 @@ export async function cacheCurrentWorkspace(): Promise<ZoneSymbol[]> {
   return cache.updateAllForCurrentWorkspace();
 }
 
+export async function cacheWorkspaceFolder(folder: vscode.WorkspaceFolder): Promise<ZoneSymbol[]> {
+  const parsed = await parser.parseWorkspaceFolder(folder);
+  let folderSymbols = [];
+  parsed.documents.forEach(({ file, symbols }) => {
+    cache.setForDocument(file, symbols);
+    folderSymbols = folderSymbols.concat(symbols);
+  });
+  cache.setForWorkspaceFolder(parsed.path, folderSymbols);
+  return folderSymbols;
+}
+
+export function syncWorkspaceCache() {
+  cache.updateAllForCurrentWorkspace();
+}
+
 export function clearCache() {
   cache.clear();
+}
+
+export function clearWorkspaceFolderCache(folder: vscode.WorkspaceFolder) {
+  cache.clearForWorkspaceFolder(folder);
 }
 
 export async function getForCurrentWorkspace(): Promise<ZoneSymbol[]> {

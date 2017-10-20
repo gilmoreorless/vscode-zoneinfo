@@ -15,11 +15,28 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.workspace.onDidChangeTextDocument(documentChanged),
     vscode.workspace.onDidSaveTextDocument(documentSaved),
   );
+  // BackCompat(no-multi-root)
+  if (vscode.workspace.onDidChangeWorkspaceFolders !== undefined) {
+    context.subscriptions.push(
+      vscode.workspace.onDidChangeWorkspaceFolders(workspaceFoldersChanged)
+    );
+  }
+  // END BackCompat
   process.nextTick(symbols.cacheCurrentWorkspace);
 }
 
 export function deactivate() {
   symbols.clearCache();
+}
+
+async function workspaceFoldersChanged(e: vscode.WorkspaceFoldersChangeEvent) {
+  await Promise.all(e.added.map(async (folder) => {
+    await symbols.cacheWorkspaceFolder(folder);
+  }));
+  e.removed.forEach(folder => {
+    symbols.clearWorkspaceFolderCache(folder);
+  });
+  symbols.syncWorkspaceCache();
 }
 
 function documentChanged(e: vscode.TextDocumentChangeEvent) {
