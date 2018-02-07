@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
 	<key>fileTypes</key>
@@ -72,7 +72,7 @@
 			<key>comment</key>
 			<string>Zone definitions</string>
 			<key>match</key>
-			<string>(?x)
+			<string>(?x)               # (extended format for regexp)
 ^(Zone)?           # "Zone"
 \s+([\w+\-\/]+)?   # Zone name
 \s+([\d:\-]+)      # UTC offset
@@ -301,7 +301,7 @@
 		<key>time</key>
 		<dict>
 			<key>match</key>
-			<string>\b-?((\d+(:\d+)+)|0\b)</string>
+			<string>-?\d+(:\d+)+|\b0\b</string>
 			<key>name</key>
 			<string>constant.numeric.time.zoneinfo</string>
 		</dict>

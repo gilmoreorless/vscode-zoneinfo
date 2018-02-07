@@ -2,6 +2,10 @@
 All notable changes to this project will be documented in this file (the format is based on [Keep a Changelog](http://keepachangelog.com/)).
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## 2.1.1 - 2018-02-07
+### Fixed
+- Better matching of time strings to support negative SAVE values.
+
 ## 2.1.0 - 2017-10-21
 ### Added
 - Support for multi-root workspaces in VS Code.
