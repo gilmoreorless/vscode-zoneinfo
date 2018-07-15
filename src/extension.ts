@@ -12,16 +12,10 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.languages.registerWorkspaceSymbolProvider(new ZoneinfoWorkspaceSymbolProvider()),
     vscode.languages.registerDefinitionProvider(ZONEINFO_MODE, new ZoneinfoDefinitionProvider()),
     vscode.languages.registerReferenceProvider(ZONEINFO_MODE, new ZoneinfoReferenceProvider()),
+    vscode.workspace.onDidChangeWorkspaceFolders(workspaceFoldersChanged),
     vscode.workspace.onDidChangeTextDocument(documentChanged),
     vscode.workspace.onDidSaveTextDocument(documentSaved),
   );
-  // BackCompat(no-multi-root)
-  if (vscode.workspace.onDidChangeWorkspaceFolders !== undefined) {
-    context.subscriptions.push(
-      vscode.workspace.onDidChangeWorkspaceFolders(workspaceFoldersChanged)
-    );
-  }
-  // END BackCompat
   process.nextTick(symbols.cacheCurrentWorkspace);
 }
 

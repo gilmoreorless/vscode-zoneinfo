@@ -61,12 +61,7 @@ function getCacheForWorkspaceFolder(folder: string | vscode.WorkspaceFolder): Fo
 }
 
 function getFolderCacheForDocument(key: CacheKey): FolderCache {
-  // BackCompat(no-multi-root)
-  if (vscode.workspace.getWorkspaceFolder === undefined) {
-    return getCacheForWorkspaceFolder(vscode.workspace.rootPath);
-  }
-  // END BackCompat
-  const folder = vscode.workspace.getWorkspaceFolder(getUri(key));
+  const folder = getWorkspaceFolderForDocument(key);
   return getCacheForWorkspaceFolder(folder);
 }
 
@@ -105,26 +100,15 @@ export function clearForWorkspaceFolder(folder: string | vscode.WorkspaceFolder)
   fullCache.delete(folderPath(folder));
 }
 
-export function getWorkspaceFolderForDocument(document: CacheKey): string | vscode.WorkspaceFolder {
-  // BackCompat(no-multi-root)
-  if (vscode.workspace.getWorkspaceFolder === undefined) {
-    return vscode.workspace.rootPath;
-  }
-  // END BackCompat
+export function getWorkspaceFolderForDocument(document: CacheKey): vscode.WorkspaceFolder {
   return vscode.workspace.getWorkspaceFolder(getUri(document));
 }
 
 export function updateAllForCurrentWorkspace(): ZoneSymbol[] {
-  let folders = vscode.workspace.workspaceFolders;
+  let folders = vscode.workspace.workspaceFolders || [];
   let allSymbols: ZoneSymbol[] = [];
-  // BackCompat(no-multi-root)
-  if (folders === undefined) {
-    allSymbols = [].concat(getCacheForWorkspaceFolder(vscode.workspace.rootPath).all);
-  } else {
-  // END BackCompat
-    allSymbols = folders.reduce((all: ZoneSymbol[], folder) =>
-      all.concat(getCacheForWorkspaceFolder(folder).all), []);
-  }
+  allSymbols = folders.reduce((all: ZoneSymbol[], folder) =>
+    all.concat(getCacheForWorkspaceFolder(folder).all), []);
   setCacheForCurrentWorkspace(allSymbols);
   return allSymbols;
 }

@@ -2,6 +2,10 @@
 All notable changes to this project will be documented in this file (the format is based on [Keep a Changelog](http://keepachangelog.com/)).
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+### BREAKING CHANGES
+- Updated minimum supported VS Code version to 1.25
+
 ## 2.1.1 - 2018-02-07
 ### Fixed
 - Better matching of time strings to support negative SAVE values.
