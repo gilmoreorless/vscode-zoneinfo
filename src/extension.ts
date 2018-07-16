@@ -2,9 +2,9 @@
 
 import * as vscode from 'vscode';
 import * as symbols from './symbols';
-import { ZoneSymbol, ZoneSymbolTextSpan } from './zone-symbol';
+import { ZoneSymbol } from './zone-symbol';
 
-const ZONEINFO_MODE = 'zoneinfo';
+const ZONEINFO_MODE: vscode.DocumentFilter = { scheme: 'file', language: 'zoneinfo' };
 
 export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
