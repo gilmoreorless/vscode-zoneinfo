@@ -84,14 +84,16 @@
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "postinstall": "node ./node_modules/vscode/bin/install",
-    "test": "npm run compile && node ./node_modules/vscode/bin/test"
+    "pretest": "npm run compile",
+    "test": "node ./out/test/runTest.js"
   },
   "devDependencies": {
     "@types/mocha": "^2.2.48",
     "@types/node": "^6.0.114",
+    "@types/vscode": "1.25",
+    "glob": "^3.2.11",
     "mocha": "^2.3.3",
     "typescript": "^2.9.2",
-    "vscode": "^1.1.18"
+    "vscode-test": "^1.4.1"
   }
 }

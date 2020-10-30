@@ -12,7 +12,3 @@ insert_final_newline = true
 [*.tmLanguage]
 indent_size = 4
 indent_style = tab
-
-[.vscode/*.json]
-indent_size = 4
-indent_style = tab
