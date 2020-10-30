@@ -88,12 +88,13 @@
     "test": "node ./out/test/runTest.js"
   },
   "devDependencies": {
-    "@types/mocha": "^2.2.48",
-    "@types/node": "^6.0.114",
+    "@types/glob": "^7.1.3",
+    "@types/mocha": "^8.0.3",
+    "@types/node": "^14.14.6",
     "@types/vscode": "1.25",
-    "glob": "^3.2.11",
-    "mocha": "^2.3.3",
-    "typescript": "^2.9.2",
+    "glob": "^7.1.6",
+    "mocha": "^8.2.0",
+    "typescript": "^4.0.5",
     "vscode-test": "^1.4.1"
   }
 }
