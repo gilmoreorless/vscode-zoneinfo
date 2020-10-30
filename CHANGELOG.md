@@ -4,7 +4,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 ### BREAKING CHANGES
-- Updated minimum supported VS Code version to 1.25
+- Updated minimum supported VS Code version to 1.50
 
 ## 2.1.1 - 2018-02-07
 ### Fixed
