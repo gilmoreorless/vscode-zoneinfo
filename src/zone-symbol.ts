@@ -31,16 +31,22 @@ export class ZoneSymbol {
 
   public toSymbolInformation(): vscode.SymbolInformation {
     return new vscode.SymbolInformation(
-      this.name.text, vscode.SymbolKind.Field, this.parentText || this.type, this.name.location
+      this.name.text,
+      vscode.SymbolKind.Field,
+      this.parentText || this.type,
+      this.name.location,
     );
   }
 
   static textSpanFromLineReference(
-    document: vscode.TextDocument, line: number, ref?: ZoneSymbolLineRef
+    document: vscode.TextDocument,
+    line: number,
+    ref?: ZoneSymbolLineRef,
   ): ZoneSymbolTextSpan {
     if (!ref) {
       return null;
     }
+    // prettier-ignore
     const range = new vscode.Range(
       line, ref.index,
       line, ref.index + ref.text.length

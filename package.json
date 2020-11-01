@@ -81,12 +81,13 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./",
-    "lint": "eslint . --ext .ts",
+    "lint": "eslint . --ext .ts && prettier --check src test",
+    "lint:fix": "eslint . --ext .ts --fix && prettier --write src test",
     "pretest": "npm run compile && npm run lint",
-    "test": "node ./out/test/runTest.js"
+    "test": "node ./out/test/runTest.js",
+    "vscode:prepublish": "npm run compile",
+    "watch": "tsc -watch -p ./"
   },
   "devDependencies": {
     "@types/glob": "^7.1.3",
@@ -96,8 +97,10 @@
     "@typescript-eslint/eslint-plugin": "^4.6.0",
     "@typescript-eslint/parser": "^4.6.0",
     "eslint": "^7.12.1",
+    "eslint-config-prettier": "^6.15.0",
     "glob": "^7.1.6",
     "mocha": "^8.2.0",
+    "prettier": "^2.1.2",
     "typescript": "^4.0.5",
     "vscode-test": "^1.4.1"
   }

@@ -60,15 +60,21 @@ function parseLine(document: vscode.TextDocument, lineNumber: number): ZoneSymbo
   const type = <ZoneSymbolType>tokens[0];
   let refs: NameLinkRefs;
   switch (type) {
-    case 'Zone': refs = tokensToReferences(tokens, 1, 3); break;
-    case 'Rule': refs = tokensToReferences(tokens, 1); break;
-    case 'Link': refs = tokensToReferences(tokens, 2, 1); break;
+    case 'Zone':
+      refs = tokensToReferences(tokens, 1, 3);
+      break;
+    case 'Rule':
+      refs = tokensToReferences(tokens, 1);
+      break;
+    case 'Link':
+      refs = tokensToReferences(tokens, 2, 1);
+      break;
   }
   if (refs) {
     let symbol = new ZoneSymbol(
       type,
       ZoneSymbol.textSpanFromLineReference(document, lineNumber, refs.name),
-      ZoneSymbol.textSpanFromLineReference(document, lineNumber, refs.link)
+      ZoneSymbol.textSpanFromLineReference(document, lineNumber, refs.link),
     );
     if (type === 'Link') {
       symbol.parentText = `Link(${tokens[2]})`;
@@ -79,7 +85,9 @@ function parseLine(document: vscode.TextDocument, lineNumber: number): ZoneSymbo
 }
 
 function parseExtraZoneLines(
-  document: vscode.TextDocument, lineNumber: number, symbol: ZoneSymbol
+  document: vscode.TextDocument,
+  lineNumber: number,
+  symbol: ZoneSymbol,
 ): number {
   let count = 0;
   // eslint-disable-next-line no-constant-condition
@@ -91,9 +99,7 @@ function parseExtraZoneLines(
     const tokens = text.split(rWhitespaceCapture);
     const refs = tokensToReferences(tokens, null, 2);
     if (refs.link) {
-      symbol.references.push(
-        ZoneSymbol.textSpanFromLineReference(document, lineNumber, refs.link)
-      );
+      symbol.references.push(ZoneSymbol.textSpanFromLineReference(document, lineNumber, refs.link));
     }
     lineNumber++;
     count++;
@@ -115,8 +121,8 @@ export function parseDocument(document: vscode.TextDocument): ZoneSymbol[] {
   return symbols;
 }
 
-type DocumentSymbols = { file: vscode.Uri, symbols: ZoneSymbol[] };
-type FolderSymbols = { path: string, documents: DocumentSymbols[] };
+type DocumentSymbols = { file: vscode.Uri; symbols: ZoneSymbol[] };
+type FolderSymbols = { path: string; documents: DocumentSymbols[] };
 
 export async function parseCurrentWorkspace(): Promise<FolderSymbols[]> {
   const folders = vscode.workspace.workspaceFolders;
@@ -130,11 +136,13 @@ export async function parseWorkspaceFolder(folder: vscode.WorkspaceFolder): Prom
   const filenames = `{${PARSEABLE_FILENAMES.join(',')}}`;
   const findArg = new vscode.RelativePattern(folder, filenames);
   const files: vscode.Uri[] = await vscode.workspace.findFiles(findArg);
-  const docSymbols: DocumentSymbols[] = await Promise.all(files.map(async (file: vscode.Uri) => {
-    const doc = await vscode.workspace.openTextDocument(file);
-    const symbols = parseDocument(doc);
-    return { file, symbols };
-  }));
+  const docSymbols: DocumentSymbols[] = await Promise.all(
+    files.map(async (file: vscode.Uri) => {
+      const doc = await vscode.workspace.openTextDocument(file);
+      const symbols = parseDocument(doc);
+      return { file, symbols };
+    }),
+  );
   return {
     path: folder.uri.toString(),
     documents: docSymbols,

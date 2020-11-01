@@ -18,7 +18,6 @@ export type FolderCache = {
   isComplete: boolean;
 };
 
-
 // ----- Internal helpers -----
 
 function getUri(file: CacheKey): vscode.Uri {
@@ -89,7 +88,6 @@ function setCacheForDocument(key: CacheKey, isDirty: boolean, symbols: ZoneSymbo
   getFolderCacheForDocument(key).byFile.set(makeKey(key), { isDirty, symbols });
 }
 
-
 // ----- Public API -----
 
 export function clear(): void {
@@ -107,8 +105,10 @@ export function getWorkspaceFolderForDocument(document: CacheKey): vscode.Worksp
 export function updateAllForCurrentWorkspace(): ZoneSymbol[] {
   let folders = vscode.workspace.workspaceFolders || [];
   let allSymbols: ZoneSymbol[] = [];
-  allSymbols = folders.reduce((all: ZoneSymbol[], folder) =>
-    all.concat(getCacheForWorkspaceFolder(folder).all), []);
+  allSymbols = folders.reduce(
+    (all: ZoneSymbol[], folder) => all.concat(getCacheForWorkspaceFolder(folder).all),
+    [],
+  );
   setCacheForCurrentWorkspace(allSymbols);
   return allSymbols;
 }

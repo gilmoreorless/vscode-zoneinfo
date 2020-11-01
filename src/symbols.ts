@@ -67,22 +67,25 @@ export async function cacheDocument(document: vscode.TextDocument): Promise<Zone
 export async function getForSpan(span: ZoneSymbolTextSpan): Promise<ZoneSymbol[]> {
   const folder = cache.getWorkspaceFolderForDocument(span.location.uri);
   const allSymbols = await cache.getForWorkspaceFolder(folder);
-  return allSymbols.filter(s => s.name.text === span.text);
+  return allSymbols.filter((s) => s.name.text === span.text);
 }
 
 export async function getSpanLinksToName(span: ZoneSymbolTextSpan): Promise<ZoneSymbolTextSpan[]> {
   const folder = cache.getWorkspaceFolderForDocument(span.location.uri);
   const allSymbols = await cache.getForWorkspaceFolder(folder);
-  return allSymbols.map((symbol) => {
-    if (symbol.name.text === span.text) {
-      return [symbol.name];
-    }
-    return symbol.references.filter(ref => ref.text === span.text);
-  }).reduce((all, spans) => all.concat(spans), [])
+  return allSymbols
+    .map((symbol) => {
+      if (symbol.name.text === span.text) {
+        return [symbol.name];
+      }
+      return symbol.references.filter((ref) => ref.text === span.text);
+    })
+    .reduce((all, spans) => all.concat(spans), []);
 }
 
 export async function getSpanForDocumentPosition(
-  document: vscode.TextDocument, position: vscode.Position
+  document: vscode.TextDocument,
+  position: vscode.Position,
 ): Promise<ZoneSymbolTextSpan> {
   const docSymbols = await getForDocument(document);
   for (let symbol of docSymbols) {
@@ -104,7 +107,7 @@ export function markDocumentDirty(document: vscode.TextDocument): void {
 
 export function unique(symbols: ZoneSymbol[]): ZoneSymbol[] {
   let used = new Set();
-  return symbols.filter(symbol => {
+  return symbols.filter((symbol) => {
     const key = [symbol.type, symbol.name.text, symbol.name.location.uri.toString()].join(':');
     if (used.has(key)) {
       return false;
