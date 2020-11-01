@@ -68,7 +68,7 @@ function getFolderCacheForDocument(key: CacheKey): FolderCache {
 function updateAllForWorkspaceFolder(folder: string | vscode.WorkspaceFolder): ZoneSymbol[] {
   let fullCache = getCacheForWorkspaceFolder(folder);
   if (fullCache.isComplete) {
-    let allSymbols = [];
+    let allSymbols: ZoneSymbol[] = [];
     for (let docCache of fullCache.byFile.values()) {
       allSymbols = allSymbols.concat(docCache.symbols);
     }
@@ -92,11 +92,11 @@ function setCacheForDocument(key: CacheKey, isDirty: boolean, symbols: ZoneSymbo
 
 // ----- Public API -----
 
-export function clear() {
+export function clear(): void {
   fullCache.clear();
 }
 
-export function clearForWorkspaceFolder(folder: string | vscode.WorkspaceFolder) {
+export function clearForWorkspaceFolder(folder: string | vscode.WorkspaceFolder): void {
   fullCache.delete(folderPath(folder));
 }
 
@@ -113,18 +113,18 @@ export function updateAllForCurrentWorkspace(): ZoneSymbol[] {
   return allSymbols;
 }
 
-export function setForWorkspaceFolder(folder: string, symbols: ZoneSymbol[]) {
+export function setForWorkspaceFolder(folder: string, symbols: ZoneSymbol[]): void {
   let cache = getCacheForWorkspaceFolder(folder);
   cache.all = symbols;
   cache.isComplete = true;
 }
 
-export function setForDocument(key: CacheKey, symbols: ZoneSymbol[]) {
+export function setForDocument(key: CacheKey, symbols: ZoneSymbol[]): void {
   setCacheForDocument(key, false, symbols);
   updateAllForWorkspaceFolder(getWorkspaceFolderForDocument(key));
 }
 
-export function setDocumentDirtyState(key: CacheKey, isDirty: boolean) {
+export function setDocumentDirtyState(key: CacheKey, isDirty: boolean): void {
   const docCache = getForDocument(key);
   setCacheForDocument(key, isDirty, docCache && docCache.symbols);
 }

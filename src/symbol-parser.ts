@@ -1,7 +1,7 @@
 'use strict';
 
 import * as vscode from 'vscode';
-import { ZoneSymbol, ZoneSymbolLineRef, ZoneSymbolTextSpan, ZoneSymbolType } from './zone-symbol';
+import { ZoneSymbol, ZoneSymbolLineRef, ZoneSymbolType } from './zone-symbol';
 
 export const PARSEABLE_FILENAMES = [
   'africa',
@@ -23,10 +23,6 @@ const rValidLine = /^(Zone|Rule|Link)/;
 const rWhitespaceCapture = /(\s+)/;
 const rWhitespaceOnly = /^\s+$/;
 const rStartTabs = /^\t{2,}/;
-
-function sumLengths(arr: string[], beforeIndex: number): number {
-  return arr.slice(0, beforeIndex).reduce((sum, str) => sum + str.length, 0);
-}
 
 type NameLinkRefs = {
   name: ZoneSymbolLineRef;
@@ -86,6 +82,7 @@ function parseExtraZoneLines(
   document: vscode.TextDocument, lineNumber: number, symbol: ZoneSymbol
 ): number {
   let count = 0;
+  // eslint-disable-next-line no-constant-condition
   while (true) {
     const text = document.lineAt(lineNumber).text;
     if (!rStartTabs.test(text)) {

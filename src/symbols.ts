@@ -8,7 +8,7 @@ import { ZoneSymbol, ZoneSymbolTextSpan } from './zone-symbol';
 export async function cacheCurrentWorkspace(): Promise<ZoneSymbol[]> {
   const folders = await parser.parseCurrentWorkspace();
   folders.forEach(({ path, documents }) => {
-    let folderSymbols = [];
+    let folderSymbols: ZoneSymbol[] = [];
     documents.forEach(({ file, symbols }) => {
       cache.setForDocument(file, symbols);
       folderSymbols = folderSymbols.concat(symbols);
@@ -20,7 +20,7 @@ export async function cacheCurrentWorkspace(): Promise<ZoneSymbol[]> {
 
 export async function cacheWorkspaceFolder(folder: vscode.WorkspaceFolder): Promise<ZoneSymbol[]> {
   const parsed = await parser.parseWorkspaceFolder(folder);
-  let folderSymbols = [];
+  let folderSymbols: ZoneSymbol[] = [];
   parsed.documents.forEach(({ file, symbols }) => {
     cache.setForDocument(file, symbols);
     folderSymbols = folderSymbols.concat(symbols);
@@ -29,15 +29,15 @@ export async function cacheWorkspaceFolder(folder: vscode.WorkspaceFolder): Prom
   return folderSymbols;
 }
 
-export function syncWorkspaceCache() {
+export function syncWorkspaceCache(): void {
   cache.updateAllForCurrentWorkspace();
 }
 
-export function clearCache() {
+export function clearCache(): void {
   cache.clear();
 }
 
-export function clearWorkspaceFolderCache(folder: vscode.WorkspaceFolder) {
+export function clearWorkspaceFolderCache(folder: vscode.WorkspaceFolder): void {
   cache.clearForWorkspaceFolder(folder);
 }
 
@@ -98,7 +98,7 @@ export async function getSpanForDocumentPosition(
   return null;
 }
 
-export function markDocumentDirty(document: vscode.TextDocument) {
+export function markDocumentDirty(document: vscode.TextDocument): void {
   cache.setDocumentDirtyState(document, true);
 }
 
