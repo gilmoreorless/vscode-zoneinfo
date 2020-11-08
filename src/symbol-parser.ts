@@ -1,7 +1,9 @@
 'use strict';
 
 import * as vscode from 'vscode';
+import { contentHash, documentHash } from './hash';
 import { ZoneSymbol, ZoneSymbolLineRef, ZoneSymbolType } from './zone-symbol';
+import { timer } from './debug';
 
 export const PARSEABLE_FILENAMES = [
   'africa',
@@ -107,6 +109,7 @@ function parseExtraZoneLines(
 }
 
 export function parseDocument(document: vscode.TextDocument): ZoneSymbol[] {
+  const logTime = timer();
   const lineCount = document.lineCount;
   let symbols = [];
   for (let i = 0; i < lineCount; i++) {
@@ -118,6 +121,7 @@ export function parseDocument(document: vscode.TextDocument): ZoneSymbol[] {
       }
     }
   }
+  logTime(`parseDocument: ${document.fileName.split('/').pop()}`);
   return symbols;
 }
 
@@ -129,20 +133,47 @@ export async function parseCurrentWorkspace(): Promise<FolderSymbols[]> {
   if (folders === undefined || !folders.length) {
     return [];
   }
-  return await Promise.all(folders.map(await parseWorkspaceFolder));
+  // return await Promise.all(folders.map(parseWorkspaceFolder));
+  let ret = [];
+  for (let folder of folders) {
+    ret.push(await parseWorkspaceFolder(folder));
+  }
+  return ret;
 }
 
 export async function parseWorkspaceFolder(folder: vscode.WorkspaceFolder): Promise<FolderSymbols> {
+  console.log(`[parseWorkspaceFolder] ${folder.name}`);
+  let logTime = timer();
   const filenames = `{${PARSEABLE_FILENAMES.join(',')}}`;
+  // const filenames = 'africa';
   const findArg = new vscode.RelativePattern(folder, filenames);
   const files: vscode.Uri[] = await vscode.workspace.findFiles(findArg);
-  const docSymbols: DocumentSymbols[] = await Promise.all(
-    files.map(async (file: vscode.Uri) => {
+  logTime(`parseWorkspaceFolder: ${folder.name}: findFiles`);
+  let docSymbols: DocumentSymbols[] = []
+  // const docSymbols: DocumentSymbols[] = await Promise.all(
+    // files.map(async (file: vscode.Uri) => {
+  for (let file of files) {
+    docSymbols.push(await (async function () {
+      let filename = file.toString().split('/').pop();
+      let logFileTime = timer();
+      // const stats = await vscode.workspace.fs.stat(file);
+      // logFileTime(`${filename}: fs.stat`)
+      // const contents = Buffer.from(await vscode.workspace.fs.readFile(file)).toString('utf-8');
+      // logFileTime(`${filename}: fs.readFile`);
+      // const hash = contentHash(contents);
+      // logFileTime(`${filename}: hash contents`);
       const doc = await vscode.workspace.openTextDocument(file);
+      logFileTime(`${filename}: open`);
       const symbols = parseDocument(doc);
+      logFileTime(`${filename}: parse`);
+      // const hash = documentHash(doc);
+      // logFileTime(`${filename}: hash`);
       return { file, symbols };
-    }),
-  );
+    })());
+  }
+  logTime(`parseWorkspaceFolder: ${folder.name}: TOTAL`);
+    // }),
+  // );
   return {
     path: folder.uri.toString(),
     documents: docSymbols,

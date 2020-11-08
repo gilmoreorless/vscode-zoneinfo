@@ -6,6 +6,7 @@ import * as parser from './symbol-parser';
 import { ZoneSymbol, ZoneSymbolTextSpan } from './zone-symbol';
 
 export async function cacheCurrentWorkspace(): Promise<ZoneSymbol[]> {
+  const start = Date.now();
   const folders = await parser.parseCurrentWorkspace();
   folders.forEach(({ path, documents }) => {
     let folderSymbols: ZoneSymbol[] = [];
@@ -15,7 +16,10 @@ export async function cacheCurrentWorkspace(): Promise<ZoneSymbol[]> {
     });
     cache.setForWorkspaceFolder(path, folderSymbols);
   });
-  return cache.updateAllForCurrentWorkspace();
+  let res = cache.updateAllForCurrentWorkspace();
+  const end = Date.now();
+  console.log(`CACHING TOOK ${end - start}`);
+  return res;
 }
 
 export async function cacheWorkspaceFolder(folder: vscode.WorkspaceFolder): Promise<ZoneSymbol[]> {
@@ -42,6 +46,7 @@ export function clearWorkspaceFolderCache(folder: vscode.WorkspaceFolder): void 
 }
 
 export async function getForCurrentWorkspace(): Promise<ZoneSymbol[]> {
+  console.log('[getForCurrentWorkspace: known documents]', vscode.workspace.textDocuments);
   const symbols = cache.getForCurrentWorkspace();
   if (symbols === null) {
     return cacheCurrentWorkspace();
