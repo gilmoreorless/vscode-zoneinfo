@@ -17,8 +17,8 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.languages.registerDefinitionProvider(ZONEINFO_MODE, new ZoneinfoDefinitionProvider()),
     vscode.languages.registerReferenceProvider(ZONEINFO_MODE, new ZoneinfoReferenceProvider()),
     vscode.workspace.onDidChangeWorkspaceFolders(workspaceFoldersChanged),
-    vscode.workspace.onDidChangeTextDocument(documentChanged),
-    vscode.workspace.onDidSaveTextDocument(documentSaved),
+    // vscode.workspace.onDidChangeTextDocument(documentChanged),
+    // vscode.workspace.onDidSaveTextDocument(documentSaved),
   );
   // process.nextTick(symbols.cacheCurrentWorkspace);
 }
@@ -28,29 +28,29 @@ export function deactivate(): void {
 }
 
 async function workspaceFoldersChanged(e: vscode.WorkspaceFoldersChangeEvent) {
-  await Promise.all(
-    e.added.map(async (folder) => {
-      await symbols.cacheWorkspaceFolder(folder);
-    }),
-  );
-  e.removed.forEach((folder) => {
-    symbols.clearWorkspaceFolderCache(folder);
-  });
-  symbols.syncWorkspaceCache();
+  // await Promise.all(
+  //   e.added.map(async (folder) => {
+  //     await symbols.cacheWorkspaceFolder(folder);
+  //   }),
+  // );
+  // e.removed.forEach((folder) => {
+  //   symbols.clearWorkspaceFolderCache(folder);
+  // });
+  // symbols.syncWorkspaceCache();
 }
 
-function documentChanged(e: vscode.TextDocumentChangeEvent) {
-  const { document, contentChanges } = e;
-  console.log('[documentChanged]', document.fileName, contentChanges);
-  if (document.languageId === 'zoneinfo' && contentChanges.length === 0) {
-    symbols.markDocumentDirty(document);
-  }
-}
+// function documentChanged(e: vscode.TextDocumentChangeEvent) {
+//   const { document, contentChanges } = e;
+//   console.log('[documentChanged]', document.fileName, contentChanges);
+//   if (document.languageId === 'zoneinfo' && contentChanges.length === 0) {
+//     symbols.markDocumentDirty(document);
+//   }
+// }
 
-function documentSaved(document: vscode.TextDocument) {
-  console.log('[documentSaved]', document.fileName);
-  symbols.cacheDocument(document);
-}
+// function documentSaved(document: vscode.TextDocument) {
+//   console.log('[documentSaved]', document.fileName);
+//   symbols.cacheDocument(document);
+// }
 
 class ZoneinfoDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
   public toSymbolInformation(allSymbols: ZoneSymbol[]): vscode.SymbolInformation[] {
@@ -66,7 +66,7 @@ class ZoneinfoDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
   ): Promise<vscode.SymbolInformation[]> {
     console.log('[provideDocumentSymbols]', document);
     const logTime = timer();
-    const docSymbols = await symbols.getForDocument(document);
+    const docSymbols = symbols.getForDocument(document);
     let ret = this.uniqueSymbols(docSymbols);
     logTime('provideDocumentSymbols');
     return ret;
@@ -111,7 +111,7 @@ class ZoneinfoWorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider 
   public async provideWorkspaceSymbols(query: string): Promise<vscode.SymbolInformation[]> {
     console.log('[provideWorkspaceSymbols]', query);
     const logTime = timer();
-    const allSymbols = await symbols.getForCurrentWorkspace();
+    const allSymbols = await symbols.getForWorkspace();
     logTime('provideWorkspaceSymbols: get');
     let ret = this.filteredSymbols(allSymbols, query);
     logTime('provideWorkspaceSymbols: filter');
@@ -126,7 +126,7 @@ class ZoneinfoDefinitionProvider implements vscode.DefinitionProvider {
   ): Promise<vscode.Definition> {
     console.log('[provideDefinition]', document, position);
     const logTime = timer();
-    const span = await symbols.getSpanForDocumentPosition(document, position);
+    const span = symbols.getSpanForDocumentPosition(document, position);
     logTime('provideDefinition: getSpan');
     if (span === null) {
       console.log('  (no matching span)');
@@ -146,7 +146,7 @@ class ZoneinfoReferenceProvider implements vscode.ReferenceProvider {
   ): Promise<vscode.Location[]> {
     console.log('[provideReferences]', document, position);
     const logTime = timer();
-    const span = await symbols.getSpanForDocumentPosition(document, position);
+    const span = symbols.getSpanForDocumentPosition(document, position);
     logTime('provideReferences: getSpan');
     if (span === null) {
       return null;

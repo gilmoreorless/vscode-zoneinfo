@@ -1,30 +1,28 @@
-'use strict';
-
 import * as vscode from 'vscode';
 import { ZoneSymbol } from './zone-symbol';
 
-let fullCache = new Map();
-
 type CacheKey = vscode.Uri | vscode.TextDocument;
+type FolderKey = string | vscode.WorkspaceFolder;
 
-export type DocumentCache = {
-  isDirty: boolean;
+interface CachedDocument {
+  hash: string;
   symbols: ZoneSymbol[];
-};
+}
 
-export type FolderCache = {
-  byFile: Map<string, DocumentCache>;
-  all: ZoneSymbol[];
-  isComplete: boolean;
-};
+interface CachedGroup {
+  symbols: ZoneSymbol[];
+}
 
-// ----- Internal helpers -----
+let documentCache: Map<string, CachedDocument> = new Map();
+let groupCache: Map<string, CachedGroup> = new Map();
+
+
+/**************************************\
+|           INTERNAL HELPERS           |
+\**************************************/
 
 function getUri(file: CacheKey): vscode.Uri {
-  if ((<vscode.TextDocument>file).uri) {
-    file = (<vscode.TextDocument>file).uri;
-  }
-  return <vscode.Uri>file;
+  return ('uri' in file) ? file.uri : file;
 }
 
 function makeKey(file: CacheKey): string {
@@ -32,119 +30,36 @@ function makeKey(file: CacheKey): string {
 }
 
 function folderPath(folder: string | vscode.WorkspaceFolder): string {
-  if (folder === undefined) {
-    return '[NO FOLDER]';
-  }
-  if (typeof folder === 'string') {
-    return folder;
-  }
-  return folder.uri.toString();
+  return (typeof folder === 'string') ? folder : folder.uri.toString();
 }
 
-function getCacheForCurrentWorkspace(): FolderCache {
-  return fullCache.get('[ALL]') || {};
+
+/**************************************\
+|              PUBLIC API              |
+\**************************************/
+
+export function getForDocument(document: vscode.TextDocument): CachedDocument | undefined {
+  return documentCache.get(makeKey(document));
 }
 
-function getCacheForWorkspaceFolder(folder: string | vscode.WorkspaceFolder): FolderCache {
+export function setForDocument(document: vscode.TextDocument, hash: string, symbols: ZoneSymbol[]): void {
+  documentCache.set(makeKey(document), { hash, symbols });
+}
+
+export function getForFolder(folder: FolderKey): CachedGroup | undefined {
   const path = folderPath(folder);
-  let cache: FolderCache = fullCache.get(path);
-  if (cache === undefined) {
-    cache = {
-      byFile: new Map(),
-      all: [],
-      isComplete: folder === undefined,
-    };
-    fullCache.set(path, cache);
-  }
-  return cache;
+  return groupCache.get(path);
 }
 
-function getFolderCacheForDocument(key: CacheKey): FolderCache {
-  const folder = getWorkspaceFolderForDocument(key);
-  return getCacheForWorkspaceFolder(folder);
+export function setForFolder(folder: FolderKey, symbols: ZoneSymbol[]): void {
+  const path = folderPath(folder);
+  groupCache.set(path, { symbols });
 }
 
-function updateAllForWorkspaceFolder(folder: string | vscode.WorkspaceFolder): ZoneSymbol[] {
-  let fullCache = getCacheForWorkspaceFolder(folder);
-  if (fullCache.isComplete) {
-    let allSymbols: ZoneSymbol[] = [];
-    for (let docCache of fullCache.byFile.values()) {
-      allSymbols = allSymbols.concat(docCache.symbols);
-    }
-    fullCache.all = allSymbols;
-  }
-  return fullCache.all;
+export function getForWorkspace(): CachedGroup | undefined {
+  return groupCache.get('[WORKSPACE]');
 }
 
-function setCacheForCurrentWorkspace(symbols: ZoneSymbol[]) {
-  fullCache.set('[ALL]', {
-    byFile: new Map(),
-    all: symbols,
-    isComplete: true,
-  });
-}
-
-function setCacheForDocument(key: CacheKey, isDirty: boolean, symbols: ZoneSymbol[]) {
-  getFolderCacheForDocument(key).byFile.set(makeKey(key), { isDirty, symbols });
-}
-
-// ----- Public API -----
-
-export function clear(): void {
-  fullCache.clear();
-}
-
-export function clearForWorkspaceFolder(folder: string | vscode.WorkspaceFolder): void {
-  fullCache.delete(folderPath(folder));
-}
-
-export function getWorkspaceFolderForDocument(document: CacheKey): vscode.WorkspaceFolder {
-  return vscode.workspace.getWorkspaceFolder(getUri(document));
-}
-
-export function updateAllForCurrentWorkspace(): ZoneSymbol[] {
-  let folders = vscode.workspace.workspaceFolders || [];
-  let allSymbols: ZoneSymbol[] = [];
-  allSymbols = folders.reduce(
-    (all: ZoneSymbol[], folder) => all.concat(getCacheForWorkspaceFolder(folder).all),
-    [],
-  );
-  setCacheForCurrentWorkspace(allSymbols);
-  return allSymbols;
-}
-
-export function setForWorkspaceFolder(folder: string, symbols: ZoneSymbol[]): void {
-  let cache = getCacheForWorkspaceFolder(folder);
-  cache.all = symbols;
-  cache.isComplete = true;
-}
-
-export function setForDocument(key: CacheKey, symbols: ZoneSymbol[]): void {
-  setCacheForDocument(key, false, symbols);
-  updateAllForWorkspaceFolder(getWorkspaceFolderForDocument(key));
-}
-
-export function setDocumentDirtyState(key: CacheKey, isDirty: boolean): void {
-  const docCache = getForDocument(key);
-  setCacheForDocument(key, isDirty, docCache && docCache.symbols);
-}
-
-export function getForCurrentWorkspace(): ZoneSymbol[] {
-  const cache = getCacheForCurrentWorkspace();
-  if (!cache.isComplete) {
-    return null;
-  }
-  return cache.all;
-}
-
-export function getForWorkspaceFolder(folder: string | vscode.WorkspaceFolder): ZoneSymbol[] {
-  const cache = getCacheForWorkspaceFolder(folder);
-  if (!cache.isComplete) {
-    return null;
-  }
-  return cache.all;
-}
-
-export function getForDocument(key: CacheKey): DocumentCache {
-  return getFolderCacheForDocument(key).byFile.get(makeKey(key));
+export function setForWorkspace(symbols: ZoneSymbol[]): void {
+  groupCache.set('[WORKSPACE]', { symbols });
 }
