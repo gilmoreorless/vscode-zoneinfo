@@ -15,6 +15,7 @@ interface CachedGroup {
 
 let documentCache: Map<string, CachedDocument> = new Map();
 let groupCache: Map<string, CachedGroup> = new Map();
+let folderDocs: Map<string, string[]> = new Map();
 
 
 /**************************************\
@@ -33,6 +34,37 @@ function folderPath(folder: string | vscode.WorkspaceFolder): string {
   return (typeof folder === 'string') ? folder : folder.uri.toString();
 }
 
+/**
+ * Reset a folder's cache by combining all document symbols within that folder.
+ */
+function syncDocumentsToFolder(folder: FolderKey): boolean {
+  // Skip if the folder hasn't been fully parsed yet
+  if (!getForFolder(folder)) {
+    return false;
+  }
+
+  const docKeys = folderDocs.get(folderPath(folder));
+  const allSymbols = docKeys.flatMap((key) => documentCache.get(key).symbols);
+  setForFolder(folder, allSymbols);
+  return true;
+}
+
+/**
+ * Reset workspace cache by combining all folder symbols.
+ */
+function syncFoldersToWorkspace(): boolean {
+  // Skip if the workspace hasn't been fully parsed yet
+  if (!getForWorkspace()) {
+    return false;
+  }
+
+  const allSymbols = Array.from(groupCache.entries())
+    .filter(([key]) => key !== '[WORKSPACE]')
+    .flatMap(([, folder]) => folder.symbols);
+  setForWorkspace(allSymbols);
+  return true;
+}
+
 
 /**************************************\
 |              PUBLIC API              |
@@ -44,6 +76,8 @@ export function getForDocument(document: vscode.TextDocument): CachedDocument | 
 
 export function setForDocument(document: vscode.TextDocument, hash: string, symbols: ZoneSymbol[]): void {
   documentCache.set(makeKey(document), { hash, symbols });
+  const folder = vscode.workspace.getWorkspaceFolder(document.uri);
+  syncDocumentsToFolder(folder);
 }
 
 export function getForFolder(folder: FolderKey): CachedGroup | undefined {
@@ -54,6 +88,18 @@ export function getForFolder(folder: FolderKey): CachedGroup | undefined {
 export function setForFolder(folder: FolderKey, symbols: ZoneSymbol[]): void {
   const path = folderPath(folder);
   groupCache.set(path, { symbols });
+  syncFoldersToWorkspace();
+}
+
+export function removeForFolder(folder: FolderKey): void {
+  const path = folderPath(folder);
+  groupCache.delete(path);
+  // Clear out any cached documents for that folder too
+  let documents = folderDocs.get(path);
+  if (documents) {
+    documents.forEach((doc) => documentCache.delete(doc));
+  }
+  syncFoldersToWorkspace();
 }
 
 export function getForWorkspace(): CachedGroup | undefined {
@@ -62,4 +108,11 @@ export function getForWorkspace(): CachedGroup | undefined {
 
 export function setForWorkspace(symbols: ZoneSymbol[]): void {
   groupCache.set('[WORKSPACE]', { symbols });
+}
+
+/**
+ * Associate documents with a folder, to help with synchronishing the cached folder symbols.
+ */
+export function setDocumentsForFolder(folder: FolderKey, documents: CacheKey[]): void {
+  folderDocs.set(folderPath(folder), documents.map(makeKey));
 }

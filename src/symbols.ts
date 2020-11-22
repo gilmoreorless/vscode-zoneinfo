@@ -44,27 +44,19 @@ function updateDocument(document: vscode.TextDocument): {
   return { symbols, didUpdate: shouldUpdate };
 }
 
-// TODO: Copied from symbol-parser, clean this up
-type DocumentSymbols = { file: vscode.Uri; symbols: ZoneSymbol[] };
-type FolderSymbols = { path: string; documents: DocumentSymbols[] };
-
 /**
  * Get all symbols for documents within a folder, parsing only the ones that haven't been cached.
  */
-async function updateFolder(folder: vscode.WorkspaceFolder): Promise<{
-  path: string,
-  documents: DocumentSymbols[],
-}> {
+async function updateFolder(folder: vscode.WorkspaceFolder): Promise<ZoneSymbol[]> {
   console.log(`[updateFolder] ${folder.name}`);
   let logTime = timer();
   const filenames = `{${parser.PARSEABLE_FILENAMES.join(',')}}`;
   const findArg = new vscode.RelativePattern(folder, filenames);
   const files: vscode.Uri[] = await vscode.workspace.findFiles(findArg);
   logTime(`[updateFolder: ${folder.name}]: findFiles`);
+  cache.setDocumentsForFolder(folder, files);
   
-  let docSymbols: DocumentSymbols[] = [];
-  let openDocuments = vscode.workspace.textDocuments;
-  console.log('  [openDocuments]', openDocuments.map(doc => doc.fileName));
+  let docSymbols: ZoneSymbol[][] = [];
   for (let file of files) {
     docSymbols.push(await (async () => {
       let filename = file.toString().split('/').pop();
@@ -75,46 +67,39 @@ async function updateFolder(folder: vscode.WorkspaceFolder): Promise<{
       const { symbols } = updateDocument(doc);
       logFileTime(`${filename}: parse/cache`);
 
-      return { file, symbols };
+      return symbols;
     })());
   }
-  const path = folder.uri.toString();
   logTime(`[updateFolder: ${folder.name}]: TOTAL`);
 
-  // TODO: Do I actually need to return DocumentSymbols here?
-  return {
-    path,
-    documents: docSymbols,
-  }
+  let allSymbols = docSymbols.flat();
+  cache.setForFolder(folder, allSymbols);
+  return allSymbols;
 }
 
 /**
  * Get all symbols for relevant documents within the current workspace.
  */
-async function updateWorkspace(): Promise<{
-  folders: FolderSymbols[],
-}> {
+async function updateWorkspace(): Promise<ZoneSymbol[]> {
   const start = Date.now();
   let folders = vscode.workspace.workspaceFolders;
   if (folders === undefined || !folders.length) {
-    return {
-      folders: [],
-    };
+    return [];
   }
 
-  let ret: FolderSymbols[] = [];
+  let folderSymbols: ZoneSymbol[][] = [];
   for (let folder of folders) {
-    ret.push(await (async () => {
-      // TODO: Only parse folders that aren't already cached
-      const { path, documents } = await updateFolder(folder);
-
-      return { path, documents };
+    folderSymbols.push(await (async () => {
+      // Use getForFolder() to avoid re-parsing folders that are already cached
+      return await getForFolder(folder);
     })());
   }
   const end = Date.now();
   console.log(`[updateWorkspace] TOOK ${end - start}`);
   
-  return { folders: ret };
+  let allSymbols = folderSymbols.flat();
+  cache.setForWorkspace(allSymbols);
+  return allSymbols;
 }
 
 /**
@@ -136,11 +121,16 @@ export async function getForFolder(folder: vscode.WorkspaceFolder): Promise<Zone
     return cached.symbols;
   }
   console.log('  (not cached, parsing...)');
-  const parsed = await updateFolder(folder);
-  // TODO: Move everything below into updateFolder() ?
-  let allSymbols = parsed.documents.flatMap(doc => doc.symbols);
-  cache.setForFolder(folder, allSymbols);
-  return allSymbols;
+  return await updateFolder(folder);
+}
+
+/**
+ * Remove all cached symbols for specified folders and their documents.
+ * This updates the cache after folders are removed from a workspace.
+ */
+export function removeForFolder(folder: vscode.WorkspaceFolder): void {
+  console.log(`[removeForFolder] ${folder.name}`);
+  cache.removeForFolder(folder);
 }
 
 /**
@@ -154,15 +144,14 @@ export async function getForWorkspace(): Promise<ZoneSymbol[]> {
     return cached.symbols;
   }
   console.log('  (not cached, parsing...)');
-  const parsed = await updateWorkspace();
-  // TODO: Move everything below into updateWorkspace() ?
-  let allSymbols = parsed.folders.flatMap(folder => {
-    let folderSymbols = folder.documents.flatMap(doc => doc.symbols);
-    cache.setForFolder(folder.path, folderSymbols);
-    return folderSymbols;
-  });
-  cache.setForWorkspace(allSymbols);
-  return allSymbols;
+  return await updateWorkspace();
+}
+
+/**
+ * Return true if all relevant files in the workspace have already been parsed and cached.
+ */
+export function hasCachedWorkspace(): boolean {
+  return Boolean(cache.getForWorkspace());
 }
 
 /**

@@ -28,15 +28,17 @@ export function deactivate(): void {
 }
 
 async function workspaceFoldersChanged(e: vscode.WorkspaceFoldersChangeEvent) {
-  // await Promise.all(
-  //   e.added.map(async (folder) => {
-  //     await symbols.cacheWorkspaceFolder(folder);
-  //   }),
-  // );
-  // e.removed.forEach((folder) => {
-  //   symbols.clearWorkspaceFolderCache(folder);
-  // });
-  // symbols.syncWorkspaceCache();
+  // Clear any cached folder/document symbols for removed folders
+  e.removed.forEach((folder) => {
+    symbols.removeForFolder(folder);
+  });
+  // Parse and cache new folders, but only if the whole workspace has been previously cached.
+  // Otherwise, rely on the usual lazy-loading behaviour within a folder.
+  if (symbols.hasCachedWorkspace()) {
+    e.added.forEach((folder) => {
+      symbols.getForFolder(folder);
+    });
+  }
 }
 
 // function documentChanged(e: vscode.TextDocumentChangeEvent) {
