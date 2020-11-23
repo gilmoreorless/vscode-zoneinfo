@@ -17,8 +17,7 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.languages.registerDefinitionProvider(ZONEINFO_MODE, new ZoneinfoDefinitionProvider()),
     vscode.languages.registerReferenceProvider(ZONEINFO_MODE, new ZoneinfoReferenceProvider()),
     vscode.workspace.onDidChangeWorkspaceFolders(workspaceFoldersChanged),
-    // vscode.workspace.onDidChangeTextDocument(documentChanged),
-    // vscode.workspace.onDidSaveTextDocument(documentSaved),
+    vscode.workspace.onDidChangeTextDocument(documentChanged),
   );
   // process.nextTick(symbols.cacheCurrentWorkspace);
 }
@@ -41,18 +40,29 @@ async function workspaceFoldersChanged(e: vscode.WorkspaceFoldersChangeEvent) {
   }
 }
 
-// function documentChanged(e: vscode.TextDocumentChangeEvent) {
-//   const { document, contentChanges } = e;
-//   console.log('[documentChanged]', document.fileName, contentChanges);
-//   if (document.languageId === 'zoneinfo' && contentChanges.length === 0) {
-//     symbols.markDocumentDirty(document);
-//   }
-// }
-
-// function documentSaved(document: vscode.TextDocument) {
-//   console.log('[documentSaved]', document.fileName);
-//   symbols.cacheDocument(document);
-// }
+/**
+ * Update the cache for a relevant document when it changes, but only when it's not actively
+ * being edited by the user. (Otherwise this would re-parse a document on every keystroke!)
+ * This handles open (but not active) documents being altered by another process (e.g. git).
+ */
+function documentChanged(e: vscode.TextDocumentChangeEvent) {
+  const { document, contentChanges } = e;
+  const activeDocument = vscode.window.activeTextEditor.document;
+  console.log(
+    `[documentChanged ${document.fileName.split('/').pop()}]`,
+    document.languageId,
+    document === activeDocument,
+    contentChanges
+  );
+  if (
+    document.languageId === 'zoneinfo' &&
+    document !== activeDocument &&
+    symbols.hasCachedDocument(document)
+  ) {
+    // `getForDocument()` will force a re-parsing of the document
+    symbols.getForDocument(document);
+  }
+}
 
 class ZoneinfoDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
   public toSymbolInformation(allSymbols: ZoneSymbol[]): vscode.SymbolInformation[] {

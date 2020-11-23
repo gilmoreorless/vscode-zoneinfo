@@ -111,6 +111,13 @@ export function getForDocument(document: vscode.TextDocument): ZoneSymbol[] {
 }
 
 /**
+ * Return true if a document already been parsed and cached.
+ */
+export function hasCachedDocument(document: vscode.TextDocument): boolean {
+  return Boolean(cache.getForDocument(document));
+}
+
+/**
  * Get all symbols for relevant documents within a folder.
  * Uses a cached list if the folder has previously been parsed.
  */
