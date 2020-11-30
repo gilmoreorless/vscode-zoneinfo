@@ -1,10 +1,14 @@
 # Change Log
 All notable changes to this project will be documented in this file (the format is based on [Keep a Changelog](http://keepachangelog.com/)).
+Development-only changes (e.g. updates to `devDependencies`) will not be listed here, as they don’t affect the public features.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 ### BREAKING CHANGES
-- Updated minimum supported VS Code version to 1.50
+- Updated minimum supported VS Code version to 1.50.
+
+### Changed
+- Improved startup performance by deferring/lazy-loading file parsing.
 
 ## 2.1.1 - 2018-02-07
 ### Fixed
