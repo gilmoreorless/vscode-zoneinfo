@@ -1,9 +1,10 @@
 'use strict';
 
 import * as vscode from 'vscode';
+
+import { log, timer } from './debug';
 import * as symbols from './symbols';
 import { ZoneSymbol } from './zone-symbol';
-import { timer } from './debug';
 
 const ZONEINFO_MODE: vscode.DocumentFilter = { scheme: 'file', language: 'zoneinfo' };
 
@@ -19,11 +20,6 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.workspace.onDidChangeWorkspaceFolders(workspaceFoldersChanged),
     vscode.workspace.onDidChangeTextDocument(documentChanged),
   );
-  // process.nextTick(symbols.cacheCurrentWorkspace);
-}
-
-export function deactivate(): void {
-  // symbols.clearCache();
 }
 
 async function workspaceFoldersChanged(e: vscode.WorkspaceFoldersChangeEvent) {
@@ -46,14 +42,8 @@ async function workspaceFoldersChanged(e: vscode.WorkspaceFoldersChangeEvent) {
  * This handles open (but not active) documents being altered by another process (e.g. git).
  */
 function documentChanged(e: vscode.TextDocumentChangeEvent) {
-  const { document, contentChanges } = e;
+  const { document } = e;
   const activeDocument = vscode.window.activeTextEditor.document;
-  console.log(
-    `[documentChanged ${document.fileName.split('/').pop()}]`,
-    document.languageId,
-    document === activeDocument,
-    contentChanges
-  );
   if (
     document.languageId === 'zoneinfo' &&
     document !== activeDocument &&
@@ -76,7 +66,7 @@ class ZoneinfoDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
   public async provideDocumentSymbols(
     document: vscode.TextDocument,
   ): Promise<vscode.SymbolInformation[]> {
-    console.log('[provideDocumentSymbols]', document);
+    log('[provideDocumentSymbols]', document);
     const logTime = timer();
     const docSymbols = symbols.getForDocument(document);
     let ret = this.uniqueSymbols(docSymbols);
@@ -121,7 +111,7 @@ class ZoneinfoWorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider 
   }
 
   public async provideWorkspaceSymbols(query: string): Promise<vscode.SymbolInformation[]> {
-    console.log('[provideWorkspaceSymbols]', query);
+    log('[provideWorkspaceSymbols]', query);
     const logTime = timer();
     const allSymbols = await symbols.getForWorkspace();
     logTime('provideWorkspaceSymbols: get');
@@ -136,12 +126,12 @@ class ZoneinfoDefinitionProvider implements vscode.DefinitionProvider {
     document: vscode.TextDocument,
     position: vscode.Position,
   ): Promise<vscode.Definition> {
-    console.log('[provideDefinition]', document, position);
+    log('[provideDefinition]', document, position);
     const logTime = timer();
     const span = symbols.getSpanForDocumentPosition(document, position);
     logTime('provideDefinition: getSpan');
     if (span === null) {
-      console.log('  (no matching span)');
+      log('  (no matching span)');
       return null;
     }
     const nameSymbols = await symbols.getForSpan(span);
@@ -156,7 +146,7 @@ class ZoneinfoReferenceProvider implements vscode.ReferenceProvider {
     position: vscode.Position,
     context: vscode.ReferenceContext,
   ): Promise<vscode.Location[]> {
-    console.log('[provideReferences]', document, position);
+    log('[provideReferences]', document, position);
     const logTime = timer();
     const span = symbols.getSpanForDocumentPosition(document, position);
     logTime('provideReferences: getSpan');

@@ -1,10 +1,10 @@
 import * as vscode from 'vscode';
 
+import { log, timer } from './debug';
 import { documentHash } from './hash';
 import * as cache from './symbol-cache';
 import * as parser from './symbol-parser';
 import { ZoneSymbol, ZoneSymbolTextSpan } from './zone-symbol';
-import { timer } from './debug';
 
 /**
  * Get all symbols for a document and sync them with the cache.
@@ -15,32 +15,32 @@ function updateDocument(document: vscode.TextDocument): {
   symbols: ZoneSymbol[],
   didUpdate: boolean,
 } {
-  let filename = document.fileName.split('/').pop();
-  console.log(`[updateDocument ${filename}]`);
-  let logTime = timer();
+  const filename = document.fileName.split('/').pop();
+  log(`[updateDocument ${filename}]`);
+  const logTime = timer();
   let shouldUpdate = false;
   let symbols: ZoneSymbol[] = [];
   const hash = documentHash(document);
   const cachedDocument = cache.getForDocument(document);
   logTime(`[updateDocument ${filename}]: hash and get`);
   if (!cachedDocument) {
-    console.log(`[updateDocument ${filename}]: not in cache`);
+    log(`[updateDocument ${filename}]: not in cache`);
     shouldUpdate = true;
   } else {
-    console.log(`[updateDocument ${filename}]: already cached`);
+    log(`[updateDocument ${filename}]: already cached`);
     symbols = cachedDocument.symbols;
     if (cachedDocument.hash !== hash) {
-      console.log(`[updateDocument ${filename}]: cached hash didn't match`);
+      log(`[updateDocument ${filename}]: cached hash didn't match`);
       shouldUpdate = true;
     }
   }
 
   if (shouldUpdate) {
-    console.log(`[updateDocument ${filename}]: parsing`);
+    log(`[updateDocument ${filename}]: parsing`);
     symbols = parser.parseDocument(document);
     cache.setForDocument(document, hash, symbols);
   }
-  logTime(`[updateDocument ${filename}]: total`);
+  logTime(`[updateDocument ${filename}]: TOTAL`);
   return { symbols, didUpdate: shouldUpdate };
 }
 
@@ -48,16 +48,17 @@ function updateDocument(document: vscode.TextDocument): {
  * Get all symbols for documents within a folder, parsing only the ones that haven't been cached.
  */
 async function updateFolder(folder: vscode.WorkspaceFolder): Promise<ZoneSymbol[]> {
-  console.log(`[updateFolder] ${folder.name}`);
-  let logTime = timer();
+  log(`[updateFolder ${folder.name}]`);
+  const logTime = timer();
   const filenames = `{${parser.PARSEABLE_FILENAMES.join(',')}}`;
   const findArg = new vscode.RelativePattern(folder, filenames);
   const files: vscode.Uri[] = await vscode.workspace.findFiles(findArg);
-  logTime(`[updateFolder: ${folder.name}]: findFiles`);
+  logTime(`[updateFolder ${folder.name}]: findFiles`);
   cache.setDocumentsForFolder(folder, files);
   
   let docSymbols: ZoneSymbol[][] = [];
   for (let file of files) {
+    // Using async IIFE here to provide more accurate performance timing measurements
     docSymbols.push(await (async () => {
       let filename = file.toString().split('/').pop();
       let logFileTime = timer();
@@ -70,7 +71,7 @@ async function updateFolder(folder: vscode.WorkspaceFolder): Promise<ZoneSymbol[
       return symbols;
     })());
   }
-  logTime(`[updateFolder: ${folder.name}]: TOTAL`);
+  logTime(`[updateFolder ${folder.name}]: TOTAL`);
 
   let allSymbols = docSymbols.flat();
   cache.setForFolder(folder, allSymbols);
@@ -81,12 +82,12 @@ async function updateFolder(folder: vscode.WorkspaceFolder): Promise<ZoneSymbol[
  * Get all symbols for relevant documents within the current workspace.
  */
 async function updateWorkspace(): Promise<ZoneSymbol[]> {
-  const start = Date.now();
   let folders = vscode.workspace.workspaceFolders;
   if (folders === undefined || !folders.length) {
     return [];
   }
 
+  const logTime = timer();
   let folderSymbols: ZoneSymbol[][] = [];
   for (let folder of folders) {
     folderSymbols.push(await (async () => {
@@ -94,8 +95,7 @@ async function updateWorkspace(): Promise<ZoneSymbol[]> {
       return await getForFolder(folder);
     })());
   }
-  const end = Date.now();
-  console.log(`[updateWorkspace] TOOK ${end - start}`);
+  logTime('[updateWorkspace]: TOTAL');
   
   let allSymbols = folderSymbols.flat();
   cache.setForWorkspace(allSymbols);
@@ -122,12 +122,12 @@ export function hasCachedDocument(document: vscode.TextDocument): boolean {
  * Uses a cached list if the folder has previously been parsed.
  */
 export async function getForFolder(folder: vscode.WorkspaceFolder): Promise<ZoneSymbol[]> {
-  console.log(`[getForFolder] ${folder.name}`);
+  log(`[getForFolder ${folder.name}]`);
   const cached = cache.getForFolder(folder);
   if (cached) {
     return cached.symbols;
   }
-  console.log('  (not cached, parsing...)');
+  log('  (not cached, parsing...)');
   return await updateFolder(folder);
 }
 
@@ -136,7 +136,7 @@ export async function getForFolder(folder: vscode.WorkspaceFolder): Promise<Zone
  * This updates the cache after folders are removed from a workspace.
  */
 export function removeForFolder(folder: vscode.WorkspaceFolder): void {
-  console.log(`[removeForFolder] ${folder.name}`);
+  log(`[removeForFolder ${folder.name}]`);
   cache.removeForFolder(folder);
 }
 
@@ -145,12 +145,12 @@ export function removeForFolder(folder: vscode.WorkspaceFolder): void {
  * Uses a cached list if all folders in the workspace have previously been parsed.
  */
 export async function getForWorkspace(): Promise<ZoneSymbol[]> {
-  console.log('[getForWorkspace]');
+  log('[getForWorkspace]');
   const cached = cache.getForWorkspace();
   if (cached) {
     return cached.symbols;
   }
-  console.log('  (not cached, parsing...)');
+  log('  (not cached, parsing...)');
   return await updateWorkspace();
 }
 
