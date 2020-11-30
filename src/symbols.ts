@@ -90,10 +90,8 @@ async function updateWorkspace(): Promise<ZoneSymbol[]> {
   const logTime = timer();
   let folderSymbols: ZoneSymbol[][] = [];
   for (let folder of folders) {
-    folderSymbols.push(await (async () => {
-      // Use getForFolder() to avoid re-parsing folders that are already cached
-      return await getForFolder(folder);
-    })());
+    // Use getForFolder() to avoid re-parsing folders that are already cached
+    folderSymbols.push(await getForFolder(folder));
   }
   logTime('[updateWorkspace]: TOTAL');
   
@@ -179,14 +177,12 @@ export async function getForSpan(span: ZoneSymbolTextSpan): Promise<ZoneSymbol[]
 export async function getSpanLinksToName(span: ZoneSymbolTextSpan): Promise<ZoneSymbolTextSpan[]> {
   const folder = vscode.workspace.getWorkspaceFolder(span.location.uri);
   const allSymbols = await getForFolder(folder);
-  return allSymbols
-    .map((symbol) => {
-      if (symbol.name.text === span.text) {
-        return [symbol.name];
-      }
-      return symbol.references.filter((ref) => ref.text === span.text);
-    })
-    .reduce((all, spans) => all.concat(spans), []);
+  return allSymbols.flatMap((symbol) => {
+    if (symbol.name.text === span.text) {
+      return [symbol.name];
+    }
+    return symbol.references.filter((ref) => ref.text === span.text);
+  });
 }
 
 /**

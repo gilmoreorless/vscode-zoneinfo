@@ -24,15 +24,11 @@ export function activate(context: vscode.ExtensionContext): void {
 
 async function workspaceFoldersChanged(e: vscode.WorkspaceFoldersChangeEvent) {
   // Clear any cached folder/document symbols for removed folders
-  e.removed.forEach((folder) => {
-    symbols.removeForFolder(folder);
-  });
+  e.removed.forEach(symbols.removeForFolder);
   // Parse and cache new folders, but only if the whole workspace has been previously cached.
   // Otherwise, rely on the usual lazy-loading behaviour within a folder.
   if (symbols.hasCachedWorkspace()) {
-    e.added.forEach((folder) => {
-      symbols.getForFolder(folder);
-    });
+    e.added.forEach(symbols.getForFolder);
   }
 }
 
