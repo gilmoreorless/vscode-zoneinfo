@@ -1,6 +1,8 @@
 'use strict';
 
 import * as vscode from 'vscode';
+
+import { log, timer } from './debug';
 import { ZoneSymbol, ZoneSymbolLineRef, ZoneSymbolType } from './zone-symbol';
 
 export const PARSEABLE_FILENAMES = [
@@ -107,6 +109,7 @@ function parseExtraZoneLines(
 }
 
 export function parseDocument(document: vscode.TextDocument): ZoneSymbol[] {
+  const logTime = timer();
   const lineCount = document.lineCount;
   let symbols = [];
   for (let i = 0; i < lineCount; i++) {
@@ -118,6 +121,7 @@ export function parseDocument(document: vscode.TextDocument): ZoneSymbol[] {
       }
     }
   }
+  logTime(`[parseDocument ${document.fileName.split('/').pop()}]`);
   return symbols;
 }
 
@@ -129,20 +133,33 @@ export async function parseCurrentWorkspace(): Promise<FolderSymbols[]> {
   if (folders === undefined || !folders.length) {
     return [];
   }
-  return await Promise.all(folders.map(await parseWorkspaceFolder));
+  let ret = [];
+  for (let folder of folders) {
+    ret.push(await parseWorkspaceFolder(folder));
+  }
+  return ret;
 }
 
 export async function parseWorkspaceFolder(folder: vscode.WorkspaceFolder): Promise<FolderSymbols> {
+  log(`[parseWorkspaceFolder ${folder.name}]`);
+  const logTime = timer();
   const filenames = `{${PARSEABLE_FILENAMES.join(',')}}`;
   const findArg = new vscode.RelativePattern(folder, filenames);
   const files: vscode.Uri[] = await vscode.workspace.findFiles(findArg);
-  const docSymbols: DocumentSymbols[] = await Promise.all(
-    files.map(async (file: vscode.Uri) => {
+  logTime(`[parseWorkspaceFolder ${folder.name}]: findFiles`);
+  let docSymbols: DocumentSymbols[] = []
+  for (let file of files) {
+    docSymbols.push(await (async function () {
+      const filename = file.toString().split('/').pop();
+      const logFileTime = timer();
       const doc = await vscode.workspace.openTextDocument(file);
+      logFileTime(`${filename}: open`);
       const symbols = parseDocument(doc);
+      logFileTime(`${filename}: parse`);
       return { file, symbols };
-    }),
-  );
+    })());
+  }
+  logTime(`[parseWorkspaceFolder ${folder.name}]: TOTAL`);
   return {
     path: folder.uri.toString(),
     documents: docSymbols,

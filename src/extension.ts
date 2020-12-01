@@ -1,6 +1,8 @@
 'use strict';
 
 import * as vscode from 'vscode';
+
+import { log, timer } from './debug';
 import * as symbols from './symbols';
 import { ZoneSymbol } from './zone-symbol';
 
@@ -17,36 +19,35 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.languages.registerReferenceProvider(ZONEINFO_MODE, new ZoneinfoReferenceProvider()),
     vscode.workspace.onDidChangeWorkspaceFolders(workspaceFoldersChanged),
     vscode.workspace.onDidChangeTextDocument(documentChanged),
-    vscode.workspace.onDidSaveTextDocument(documentSaved),
   );
-  process.nextTick(symbols.cacheCurrentWorkspace);
-}
-
-export function deactivate(): void {
-  symbols.clearCache();
 }
 
 async function workspaceFoldersChanged(e: vscode.WorkspaceFoldersChangeEvent) {
-  await Promise.all(
-    e.added.map(async (folder) => {
-      await symbols.cacheWorkspaceFolder(folder);
-    }),
-  );
-  e.removed.forEach((folder) => {
-    symbols.clearWorkspaceFolderCache(folder);
-  });
-  symbols.syncWorkspaceCache();
-}
-
-function documentChanged(e: vscode.TextDocumentChangeEvent) {
-  const { document, contentChanges } = e;
-  if (document.languageId === 'zoneinfo' && contentChanges.length === 0) {
-    symbols.markDocumentDirty(document);
+  // Clear any cached folder/document symbols for removed folders
+  e.removed.forEach(symbols.removeForFolder);
+  // Parse and cache new folders, but only if the whole workspace has been previously cached.
+  // Otherwise, rely on the usual lazy-loading behaviour within a folder.
+  if (symbols.hasCachedWorkspace()) {
+    e.added.forEach(symbols.getForFolder);
   }
 }
 
-function documentSaved(document: vscode.TextDocument) {
-  symbols.cacheDocument(document);
+/**
+ * Update the cache for a relevant document when it changes, but only when it's not actively
+ * being edited by the user. (Otherwise this would re-parse a document on every keystroke!)
+ * This handles open (but not active) documents being altered by another process (e.g. git).
+ */
+function documentChanged(e: vscode.TextDocumentChangeEvent) {
+  const { document } = e;
+  const activeDocument = vscode.window.activeTextEditor.document;
+  if (
+    document.languageId === 'zoneinfo' &&
+    document !== activeDocument &&
+    symbols.hasCachedDocument(document)
+  ) {
+    // `getForDocument()` will force a re-parsing of the document
+    symbols.getForDocument(document);
+  }
 }
 
 class ZoneinfoDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
@@ -61,8 +62,12 @@ class ZoneinfoDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
   public async provideDocumentSymbols(
     document: vscode.TextDocument,
   ): Promise<vscode.SymbolInformation[]> {
-    const docSymbols = await symbols.getForDocument(document);
-    return this.uniqueSymbols(docSymbols);
+    log('[provideDocumentSymbols]', document);
+    const logTime = timer();
+    const docSymbols = symbols.getForDocument(document);
+    let ret = this.uniqueSymbols(docSymbols);
+    logTime('provideDocumentSymbols');
+    return ret;
   }
 }
 
@@ -102,8 +107,13 @@ class ZoneinfoWorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider 
   }
 
   public async provideWorkspaceSymbols(query: string): Promise<vscode.SymbolInformation[]> {
-    const allSymbols = await symbols.getForCurrentWorkspace();
-    return this.filteredSymbols(allSymbols, query);
+    log('[provideWorkspaceSymbols]', query);
+    const logTime = timer();
+    const allSymbols = await symbols.getForWorkspace();
+    logTime('provideWorkspaceSymbols: get');
+    let ret = this.filteredSymbols(allSymbols, query);
+    logTime('provideWorkspaceSymbols: filter');
+    return ret;
   }
 }
 
@@ -112,11 +122,16 @@ class ZoneinfoDefinitionProvider implements vscode.DefinitionProvider {
     document: vscode.TextDocument,
     position: vscode.Position,
   ): Promise<vscode.Definition> {
-    const span = await symbols.getSpanForDocumentPosition(document, position);
+    log('[provideDefinition]', document, position);
+    const logTime = timer();
+    const span = symbols.getSpanForDocumentPosition(document, position);
+    logTime('provideDefinition: getSpan');
     if (span === null) {
+      log('  (no matching span)');
       return null;
     }
     const nameSymbols = await symbols.getForSpan(span);
+    logTime('provideDefinition: getSymbols');
     return nameSymbols.map((s) => s.name.location);
   }
 }
@@ -127,7 +142,10 @@ class ZoneinfoReferenceProvider implements vscode.ReferenceProvider {
     position: vscode.Position,
     context: vscode.ReferenceContext,
   ): Promise<vscode.Location[]> {
-    const span = await symbols.getSpanForDocumentPosition(document, position);
+    log('[provideReferences]', document, position);
+    const logTime = timer();
+    const span = symbols.getSpanForDocumentPosition(document, position);
+    logTime('provideReferences: getSpan');
     if (span === null) {
       return null;
     }
@@ -135,6 +153,7 @@ class ZoneinfoReferenceProvider implements vscode.ReferenceProvider {
     if (!context.includeDeclaration) {
       spans = spans.filter((s) => s !== span);
     }
+    logTime('provideReferences: getSymbols');
     return spans.map((s) => s.location);
   }
 }
