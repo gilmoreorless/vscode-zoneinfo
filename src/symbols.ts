@@ -165,6 +165,9 @@ export function hasCachedWorkspace(): boolean {
  */
 export async function getForSpan(span: ZoneSymbolTextSpan): Promise<ZoneSymbol[]> {
   const folder = vscode.workspace.getWorkspaceFolder(span.location.uri);
+  if (!folder) {
+    return [];
+  }
   const allSymbols = await getForFolder(folder);
   return allSymbols.filter((s) => s.name.text === span.text);
 }
@@ -176,6 +179,9 @@ export async function getForSpan(span: ZoneSymbolTextSpan): Promise<ZoneSymbol[]
  */
 export async function getSpanLinksToName(span: ZoneSymbolTextSpan): Promise<ZoneSymbolTextSpan[]> {
   const folder = vscode.workspace.getWorkspaceFolder(span.location.uri);
+  if (!folder) {
+    return [];
+  }
   const allSymbols = await getForFolder(folder);
   return allSymbols.flatMap((symbol) => {
     if (symbol.name.text === span.text) {
@@ -192,7 +198,7 @@ export async function getSpanLinksToName(span: ZoneSymbolTextSpan): Promise<Zone
 export function getSpanForDocumentPosition(
   document: vscode.TextDocument,
   position: vscode.Position,
-): ZoneSymbolTextSpan {
+): ZoneSymbolTextSpan | null {
   const docSymbols = getForDocument(document);
   for (let symbol of docSymbols) {
     if (symbol.name.location.range.contains(position)) {

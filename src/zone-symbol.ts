@@ -38,11 +38,19 @@ export class ZoneSymbol {
     );
   }
 
+  // Overloads for better type inference
+  static textSpanFromLineReference(document: vscode.TextDocument, line: number): null;
   static textSpanFromLineReference(
     document: vscode.TextDocument,
     line: number,
     ref?: ZoneSymbolLineRef,
-  ): ZoneSymbolTextSpan {
+  ): ZoneSymbolTextSpan;
+
+  static textSpanFromLineReference(
+    document: vscode.TextDocument,
+    line: number,
+    ref?: ZoneSymbolLineRef,
+  ): ZoneSymbolTextSpan | null {
     if (!ref) {
       return null;
     }

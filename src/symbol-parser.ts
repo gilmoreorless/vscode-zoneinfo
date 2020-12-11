@@ -27,18 +27,19 @@ const rWhitespaceOnly = /^\s+$/;
 const rStartTabs = /^\t{2,}/;
 
 type NameLinkRefs = {
-  name: ZoneSymbolLineRef;
-  link: ZoneSymbolLineRef;
+  name?: ZoneSymbolLineRef;
+  link?: ZoneSymbolLineRef;
 };
 
 function tokensToReferences(tokens: string[], nameField: number, linkField?: number): NameLinkRefs {
   let fieldIndex = -1;
   let charIndex = 0;
-  let name: ZoneSymbolLineRef, link: ZoneSymbolLineRef;
+  let name: ZoneSymbolLineRef | undefined;
+  let link: ZoneSymbolLineRef | undefined;
   tokens.forEach((token) => {
     if (!rWhitespaceOnly.test(token)) {
       fieldIndex++;
-      if (nameField !== null && fieldIndex === nameField) {
+      if (nameField > -1 && fieldIndex === nameField) {
         name = { text: token, index: charIndex };
       }
       if (linkField !== undefined && fieldIndex === linkField && token !== '-') {
@@ -50,7 +51,7 @@ function tokensToReferences(tokens: string[], nameField: number, linkField?: num
   return { name, link };
 }
 
-function parseLine(document: vscode.TextDocument, lineNumber: number): ZoneSymbol {
+function parseLine(document: vscode.TextDocument, lineNumber: number): ZoneSymbol | null {
   const line = document.lineAt(lineNumber);
   const text = line.text;
   // Skip non-definition lines
@@ -60,7 +61,7 @@ function parseLine(document: vscode.TextDocument, lineNumber: number): ZoneSymbo
 
   const tokens = text.split(rWhitespaceCapture);
   const type = <ZoneSymbolType>tokens[0];
-  let refs: NameLinkRefs;
+  let refs: NameLinkRefs | undefined;
   switch (type) {
     case 'Zone':
       refs = tokensToReferences(tokens, 1, 3);
@@ -72,7 +73,7 @@ function parseLine(document: vscode.TextDocument, lineNumber: number): ZoneSymbo
       refs = tokensToReferences(tokens, 2, 1);
       break;
   }
-  if (refs) {
+  if (refs?.name) {
     let symbol = new ZoneSymbol(
       type,
       ZoneSymbol.textSpanFromLineReference(document, lineNumber, refs.name),
@@ -99,8 +100,8 @@ function parseExtraZoneLines(
       return count;
     }
     const tokens = text.split(rWhitespaceCapture);
-    const refs = tokensToReferences(tokens, null, 2);
-    if (refs.link) {
+    const refs = tokensToReferences(tokens, -1, 2);
+    if (refs?.link) {
       symbol.references.push(ZoneSymbol.textSpanFromLineReference(document, lineNumber, refs.link));
     }
     lineNumber++;

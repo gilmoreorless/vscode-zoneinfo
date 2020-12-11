@@ -39,7 +39,7 @@ async function workspaceFoldersChanged(e: vscode.WorkspaceFoldersChangeEvent) {
  */
 function documentChanged(e: vscode.TextDocumentChangeEvent) {
   const { document } = e;
-  const activeDocument = vscode.window.activeTextEditor.document;
+  const activeDocument = vscode.window.activeTextEditor?.document;
   if (
     document.languageId === 'zoneinfo' &&
     document !== activeDocument &&
@@ -121,7 +121,7 @@ class ZoneinfoDefinitionProvider implements vscode.DefinitionProvider {
   public async provideDefinition(
     document: vscode.TextDocument,
     position: vscode.Position,
-  ): Promise<vscode.Definition> {
+  ): Promise<vscode.Definition | null> {
     log('[provideDefinition]', document, position);
     const logTime = timer();
     const span = symbols.getSpanForDocumentPosition(document, position);
@@ -141,7 +141,7 @@ class ZoneinfoReferenceProvider implements vscode.ReferenceProvider {
     document: vscode.TextDocument,
     position: vscode.Position,
     context: vscode.ReferenceContext,
-  ): Promise<vscode.Location[]> {
+  ): Promise<vscode.Location[] | null> {
     log('[provideReferences]', document, position);
     const logTime = timer();
     const span = symbols.getSpanForDocumentPosition(document, position);

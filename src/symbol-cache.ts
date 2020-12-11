@@ -34,17 +34,21 @@ function folderPath(folder: string | vscode.WorkspaceFolder): string {
   return (typeof folder === 'string') ? folder : folder.uri.toString();
 }
 
+function notEmpty<T>(value: T | undefined): value is Exclude<T, null> {
+  return value != null;
+}
+
 /**
  * Reset a folder's cache by combining all document symbols within that folder.
  */
 function syncDocumentsToFolder(folder: FolderKey): boolean {
+  const docKeys = folderDocs.get(folderPath(folder));
   // Skip if the folder hasn't been fully parsed yet
-  if (!getForFolder(folder)) {
+  if (!getForFolder(folder) || !docKeys) {
     return false;
   }
 
-  const docKeys = folderDocs.get(folderPath(folder));
-  const allSymbols = docKeys.flatMap((key) => documentCache.get(key).symbols);
+  const allSymbols = docKeys.flatMap((key) => documentCache.get(key)?.symbols).filter(notEmpty);
   setForFolder(folder, allSymbols);
   return true;
 }
@@ -77,7 +81,9 @@ export function getForDocument(document: vscode.TextDocument): CachedDocument | 
 export function setForDocument(document: vscode.TextDocument, hash: string, symbols: ZoneSymbol[]): void {
   documentCache.set(makeKey(document), { hash, symbols });
   const folder = vscode.workspace.getWorkspaceFolder(document.uri);
-  syncDocumentsToFolder(folder);
+  if (folder) {
+    syncDocumentsToFolder(folder);
+  }
 }
 
 export function getForFolder(folder: FolderKey): CachedGroup | undefined {

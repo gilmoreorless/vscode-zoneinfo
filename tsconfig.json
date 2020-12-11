@@ -13,6 +13,7 @@
     "noUnusedParameters": true,
     "noImplicitReturns": true,
     "noImplicitThis": true,
+    "strict": true,
   },
   "exclude": [
     "node_modules",
