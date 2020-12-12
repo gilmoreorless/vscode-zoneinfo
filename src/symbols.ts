@@ -11,9 +11,11 @@ import { ZoneSymbol, ZoneSymbolTextSpan } from './zone-symbol';
  * This will only parse the document for symbols when the document's content hash doesn't match
  * the cached value.
  */
-function updateDocument(document: vscode.TextDocument): {
-  symbols: ZoneSymbol[],
-  didUpdate: boolean,
+function updateDocument(
+  document: vscode.TextDocument,
+): {
+  symbols: ZoneSymbol[];
+  didUpdate: boolean;
 } {
   const filename = document.fileName.split('/').pop();
   log(`[updateDocument ${filename}]`);
@@ -55,21 +57,23 @@ async function updateFolder(folder: vscode.WorkspaceFolder): Promise<ZoneSymbol[
   const files: vscode.Uri[] = await vscode.workspace.findFiles(findArg);
   logTime(`[updateFolder ${folder.name}]: findFiles`);
   cache.setDocumentsForFolder(folder, files);
-  
+
   let docSymbols: ZoneSymbol[][] = [];
   for (let file of files) {
     // Using async IIFE here to provide more accurate performance timing measurements
-    docSymbols.push(await (async () => {
-      let filename = file.toString().split('/').pop();
-      let logFileTime = timer();
+    docSymbols.push(
+      await (async () => {
+        let filename = file.toString().split('/').pop();
+        let logFileTime = timer();
 
-      const doc = await vscode.workspace.openTextDocument(file);
-      logFileTime(`${filename}: open`);
-      const { symbols } = updateDocument(doc);
-      logFileTime(`${filename}: parse/cache`);
+        const doc = await vscode.workspace.openTextDocument(file);
+        logFileTime(`${filename}: open`);
+        const { symbols } = updateDocument(doc);
+        logFileTime(`${filename}: parse/cache`);
 
-      return symbols;
-    })());
+        return symbols;
+      })(),
+    );
   }
   logTime(`[updateFolder ${folder.name}]: TOTAL`);
 
@@ -94,7 +98,7 @@ async function updateWorkspace(): Promise<ZoneSymbol[]> {
     folderSymbols.push(await getForFolder(folder));
   }
   logTime('[updateWorkspace]: TOTAL');
-  
+
   let allSymbols = folderSymbols.flat();
   cache.setForWorkspace(allSymbols);
   return allSymbols;

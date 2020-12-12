@@ -17,13 +17,12 @@ let documentCache: Map<string, CachedDocument> = new Map();
 let groupCache: Map<string, CachedGroup> = new Map();
 let folderDocs: Map<string, string[]> = new Map();
 
-
 /**************************************\
 |           INTERNAL HELPERS           |
 \**************************************/
 
 function getUri(file: CacheKey): vscode.Uri {
-  return ('uri' in file) ? file.uri : file;
+  return 'uri' in file ? file.uri : file;
 }
 
 function makeKey(file: CacheKey): string {
@@ -31,7 +30,7 @@ function makeKey(file: CacheKey): string {
 }
 
 function folderPath(folder: string | vscode.WorkspaceFolder): string {
-  return (typeof folder === 'string') ? folder : folder.uri.toString();
+  return typeof folder === 'string' ? folder : folder.uri.toString();
 }
 
 function notEmpty<T>(value: T | undefined): value is Exclude<T, null> {
@@ -69,7 +68,6 @@ function syncFoldersToWorkspace(): boolean {
   return true;
 }
 
-
 /**************************************\
 |              PUBLIC API              |
 \**************************************/
@@ -78,7 +76,11 @@ export function getForDocument(document: vscode.TextDocument): CachedDocument | 
   return documentCache.get(makeKey(document));
 }
 
-export function setForDocument(document: vscode.TextDocument, hash: string, symbols: ZoneSymbol[]): void {
+export function setForDocument(
+  document: vscode.TextDocument,
+  hash: string,
+  symbols: ZoneSymbol[],
+): void {
   documentCache.set(makeKey(document), { hash, symbols });
   const folder = vscode.workspace.getWorkspaceFolder(document.uri);
   if (folder) {

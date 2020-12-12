@@ -148,17 +148,19 @@ export async function parseWorkspaceFolder(folder: vscode.WorkspaceFolder): Prom
   const findArg = new vscode.RelativePattern(folder, filenames);
   const files: vscode.Uri[] = await vscode.workspace.findFiles(findArg);
   logTime(`[parseWorkspaceFolder ${folder.name}]: findFiles`);
-  let docSymbols: DocumentSymbols[] = []
+  let docSymbols: DocumentSymbols[] = [];
   for (let file of files) {
-    docSymbols.push(await (async function () {
-      const filename = file.toString().split('/').pop();
-      const logFileTime = timer();
-      const doc = await vscode.workspace.openTextDocument(file);
-      logFileTime(`${filename}: open`);
-      const symbols = parseDocument(doc);
-      logFileTime(`${filename}: parse`);
-      return { file, symbols };
-    })());
+    docSymbols.push(
+      await (async function () {
+        const filename = file.toString().split('/').pop();
+        const logFileTime = timer();
+        const doc = await vscode.workspace.openTextDocument(file);
+        logFileTime(`${filename}: open`);
+        const symbols = parseDocument(doc);
+        logFileTime(`${filename}: parse`);
+        return { file, symbols };
+      })(),
+    );
   }
   logTime(`[parseWorkspaceFolder ${folder.name}]: TOTAL`);
   return {

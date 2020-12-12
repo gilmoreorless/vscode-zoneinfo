@@ -17,7 +17,7 @@ export function timer(): (label: string) => void {
     // eslint-disable-next-line @typescript-eslint/no-empty-function
     return () => {};
   }
-  
+
   const start = performance.now();
   let prevMark: number;
   return (label: string) => {
@@ -29,5 +29,5 @@ export function timer(): (label: string) => void {
       console.log(logLabel, round(mark - start));
     }
     prevMark = mark;
-  }
+  };
 }
