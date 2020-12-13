@@ -20,7 +20,7 @@ export class ZoneSymbol {
   parentText?: string;
   references: ZoneSymbolTextSpan[];
 
-  public constructor(type: ZoneSymbolType, name: ZoneSymbolTextSpan, link?: ZoneSymbolTextSpan) {
+  constructor(type: ZoneSymbolType, name: ZoneSymbolTextSpan, link?: ZoneSymbolTextSpan) {
     this.type = type;
     this.name = name;
     this.references = [];
@@ -29,7 +29,7 @@ export class ZoneSymbol {
     }
   }
 
-  public toSymbolInformation(): vscode.SymbolInformation {
+  toSymbolInformation(): vscode.SymbolInformation {
     return new vscode.SymbolInformation(
       this.name.text,
       vscode.SymbolKind.Field,

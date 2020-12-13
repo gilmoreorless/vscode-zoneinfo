@@ -51,17 +51,15 @@ function documentChanged(e: vscode.TextDocumentChangeEvent) {
 }
 
 class ZoneinfoDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
-  public toSymbolInformation(allSymbols: ZoneSymbol[]): vscode.SymbolInformation[] {
+  toSymbolInformation(allSymbols: ZoneSymbol[]): vscode.SymbolInformation[] {
     return allSymbols.map((s) => s.toSymbolInformation());
   }
 
-  public uniqueSymbols(allSymbols: ZoneSymbol[]): vscode.SymbolInformation[] {
+  uniqueSymbols(allSymbols: ZoneSymbol[]): vscode.SymbolInformation[] {
     return this.toSymbolInformation(symbols.unique(allSymbols));
   }
 
-  public async provideDocumentSymbols(
-    document: vscode.TextDocument,
-  ): Promise<vscode.SymbolInformation[]> {
+  async provideDocumentSymbols(document: vscode.TextDocument): Promise<vscode.SymbolInformation[]> {
     log('[provideDocumentSymbols]', document);
     const logTime = timer();
     const docSymbols = symbols.getForDocument(document);
@@ -74,11 +72,11 @@ class ZoneinfoDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
 class ZoneinfoWorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider {
   private symbolProvider: ZoneinfoDocumentSymbolProvider;
 
-  public constructor() {
+  constructor() {
     this.symbolProvider = new ZoneinfoDocumentSymbolProvider();
   }
 
-  public filteredSymbols(allSymbols: ZoneSymbol[], query: string): vscode.SymbolInformation[] {
+  filteredSymbols(allSymbols: ZoneSymbol[], query: string): vscode.SymbolInformation[] {
     const uniqueSymbols = symbols.unique(allSymbols);
     if (!query.length) {
       return this.symbolProvider.toSymbolInformation(uniqueSymbols);
@@ -106,7 +104,7 @@ class ZoneinfoWorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider 
     return this.symbolProvider.toSymbolInformation(filtered);
   }
 
-  public async provideWorkspaceSymbols(query: string): Promise<vscode.SymbolInformation[]> {
+  async provideWorkspaceSymbols(query: string): Promise<vscode.SymbolInformation[]> {
     log('[provideWorkspaceSymbols]', query);
     const logTime = timer();
     const allSymbols = await symbols.getForWorkspace();
@@ -118,7 +116,7 @@ class ZoneinfoWorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider 
 }
 
 class ZoneinfoDefinitionProvider implements vscode.DefinitionProvider {
-  public async provideDefinition(
+  async provideDefinition(
     document: vscode.TextDocument,
     position: vscode.Position,
   ): Promise<vscode.Definition | null> {
@@ -137,7 +135,7 @@ class ZoneinfoDefinitionProvider implements vscode.DefinitionProvider {
 }
 
 class ZoneinfoReferenceProvider implements vscode.ReferenceProvider {
-  public async provideReferences(
+  async provideReferences(
     document: vscode.TextDocument,
     position: vscode.Position,
     context: vscode.ReferenceContext,
