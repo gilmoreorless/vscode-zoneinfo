@@ -3,7 +3,7 @@ All notable changes to this project will be documented in this file (the format 
 Development-only changes (e.g. updates to `devDependencies`) will not be listed here, as they don’t affect the public features.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 3.0.0 - 2020-12-13
 ### BREAKING CHANGES
 - Updated minimum supported VS Code version to 1.50.
 
