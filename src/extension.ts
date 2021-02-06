@@ -1,5 +1,3 @@
-'use strict';
-
 import * as vscode from 'vscode';
 
 import { log, timer } from './debug';
@@ -55,11 +53,15 @@ class ZoneinfoDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
     return allSymbols.map((s) => s.toSymbolInformation());
   }
 
-  uniqueSymbols(allSymbols: ZoneSymbol[]): vscode.SymbolInformation[] {
-    return this.toSymbolInformation(symbols.unique(allSymbols));
+  toDocumentSymbols(allSymbols: ZoneSymbol[]): vscode.DocumentSymbol[] {
+    return allSymbols.map((s) => s.toDocumentSymbol());
   }
 
-  async provideDocumentSymbols(document: vscode.TextDocument): Promise<vscode.SymbolInformation[]> {
+  uniqueSymbols(allSymbols: ZoneSymbol[]): vscode.DocumentSymbol[] {
+    return this.toDocumentSymbols(symbols.unique(allSymbols));
+  }
+
+  async provideDocumentSymbols(document: vscode.TextDocument): Promise<vscode.DocumentSymbol[]> {
     log('[provideDocumentSymbols]', document);
     const logTime = timer();
     const docSymbols = symbols.getForDocument(document);

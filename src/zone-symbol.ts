@@ -101,6 +101,16 @@ export class ZoneSymbol {
       this.name.location,
     );
   }
+
+  toDocumentSymbol(): vscode.DocumentSymbol {
+    return new vscode.DocumentSymbol(
+      this.name.text,
+      this.description(),
+      vscode.SymbolKind.Field,
+      this.totalRange.range,
+      this.name.location.range,
+    );
+  }
 }
 
 export function textSpanFromLineReference(
