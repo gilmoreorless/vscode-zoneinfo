@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { ZoneSymbol } from './zone-symbol';
+import { CommentBlock, ZoneSymbol } from './zone-symbol';
 
 type CacheKey = vscode.Uri | vscode.TextDocument;
 type FolderKey = string | vscode.WorkspaceFolder;
@@ -7,6 +7,7 @@ type FolderKey = string | vscode.WorkspaceFolder;
 interface CachedDocument {
   hash: string;
   symbols: ZoneSymbol[];
+  comments: CommentBlock[];
 }
 
 interface CachedGroup {
@@ -80,8 +81,9 @@ export function setForDocument(
   document: vscode.TextDocument,
   hash: string,
   symbols: ZoneSymbol[],
+  comments: CommentBlock[],
 ): void {
-  documentCache.set(makeKey(document), { hash, symbols });
+  documentCache.set(makeKey(document), { hash, symbols, comments });
   const folder = vscode.workspace.getWorkspaceFolder(document.uri);
   if (folder) {
     syncDocumentsToFolder(folder);
