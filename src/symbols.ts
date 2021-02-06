@@ -39,7 +39,7 @@ function updateDocument(
 
   if (shouldUpdate) {
     log(`[updateDocument ${filename}]: parsing`);
-    symbols = parser.parseDocument(document);
+    symbols = parser.parseDocument(document).symbols;
     cache.setForDocument(document, hash, symbols);
   }
   logTime(`[updateDocument ${filename}]: TOTAL`);
