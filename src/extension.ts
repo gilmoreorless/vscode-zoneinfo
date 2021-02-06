@@ -121,7 +121,7 @@ class ZoneinfoDefinitionProvider implements vscode.DefinitionProvider {
   async provideDefinition(
     document: vscode.TextDocument,
     position: vscode.Position,
-  ): Promise<vscode.Definition | null> {
+  ): Promise<vscode.DefinitionLink[] | null> {
     log('[provideDefinition]', document, position);
     const logTime = timer();
     const span = symbols.getSpanForDocumentPosition(document, position);
@@ -132,7 +132,12 @@ class ZoneinfoDefinitionProvider implements vscode.DefinitionProvider {
     }
     const nameSymbols = await symbols.getForSpan(span);
     logTime('provideDefinition: getSymbols');
-    return nameSymbols.map((s) => s.name.location);
+    return nameSymbols.map((symbol) => ({
+      originSelectionRange: span.location.range,
+      targetUri: symbol.name.location.uri,
+      targetRange: symbol.totalRange.range,
+      targetSelectionRange: symbol.name.location.range,
+    }));
   }
 }
 
