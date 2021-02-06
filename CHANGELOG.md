@@ -3,6 +3,17 @@ All notable changes to this project will be documented in this file (the format 
 Development-only changes (e.g. updates to `devDependencies`) will not be listed here, as they don’t affect the public features.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+### Changed
+- Rewrote file parser to enable new functionality.
+- "Go to definition" is more context-aware to reduce ambiguity (e.g. a `Zone` referencing a `Rule` will no longer reference a `Link` with the same name).
+- Consecutive lines for the same `Rule` are combined into a single symbol, to simplify results for "go to definition" and "find all references".
+
+### Fixed
+- "Go to definition" for a `Rule` name within a `Zone` wasn't working on lines that followed comment lines (e.g. `Africa/Tripoli`).
+- Ctrl/Cmd + hover over a `Zone` name underlines the full name instead of just one word.
+- Outline view in the sidebar now correctly shows symbols in file order instead of alphabetical order.
+
 ## 3.0.0 - 2020-12-13
 ### BREAKING CHANGES
 - Updated minimum supported VS Code version to 1.50.
