@@ -57,15 +57,11 @@ class ZoneinfoDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
     return allSymbols.map((s) => s.toDocumentSymbol());
   }
 
-  uniqueSymbols(allSymbols: ZoneSymbol[]): vscode.DocumentSymbol[] {
-    return this.toDocumentSymbols(symbols.unique(allSymbols));
-  }
-
   async provideDocumentSymbols(document: vscode.TextDocument): Promise<vscode.DocumentSymbol[]> {
     log('[provideDocumentSymbols]', document);
     const logTime = timer();
     const docSymbols = symbols.getForDocument(document);
-    let ret = this.uniqueSymbols(docSymbols);
+    let ret = this.toDocumentSymbols(docSymbols);
     logTime('provideDocumentSymbols');
     return ret;
   }
@@ -79,9 +75,8 @@ class ZoneinfoWorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider 
   }
 
   filteredSymbols(allSymbols: ZoneSymbol[], query: string): vscode.SymbolInformation[] {
-    const uniqueSymbols = symbols.unique(allSymbols);
     if (!query.length) {
-      return this.symbolProvider.toSymbolInformation(uniqueSymbols);
+      return this.symbolProvider.toSymbolInformation(allSymbols);
     }
     // Just match that the query chars appear somewhere in the name in the right order.
     // Let VS Code handle the sorting by relevance.
@@ -102,7 +97,7 @@ class ZoneinfoWorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider 
       return true;
     };
 
-    const filtered = uniqueSymbols.filter((symbol: ZoneSymbol) => doesMatch(symbol.name.text));
+    const filtered = allSymbols.filter((symbol: ZoneSymbol) => doesMatch(symbol.name.text));
     return this.symbolProvider.toSymbolInformation(filtered);
   }
 

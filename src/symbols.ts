@@ -256,19 +256,3 @@ export function getSpanForDocumentPosition(
   }
   return null;
 }
-
-/**
- * De-duplicate a list of symbols.
- * Duplicates are symbols in the same document with the same type and name.
- */
-export function unique(symbols: ZoneSymbol[]): ZoneSymbol[] {
-  let used = new Set();
-  return symbols.filter((symbol) => {
-    const key = [symbol.type, symbol.name.text, symbol.name.location.uri.toString()].join(':');
-    if (used.has(key)) {
-      return false;
-    }
-    used.add(key);
-    return true;
-  });
-}
