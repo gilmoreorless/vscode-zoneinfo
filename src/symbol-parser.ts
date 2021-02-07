@@ -88,23 +88,49 @@ class Parser {
   }
 
   /**
+   * Find a parsed `CommentBlock` that ends on the given line.
+   */
+  findCommentBlockEnding(endLine: number): CommentBlock | null {
+    // Start at the most recent comment and work backwards
+    for (let i = this.comments.length - 1; i >= 0; i--) {
+      let comment = this.comments[i];
+      if (comment.endLine === endLine) {
+        return comment;
+      }
+      if (comment.endLine < endLine) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  /**
    * Return a `Location` with a `Range` from the given start line to the parser's current line.
-   * This will adjust the `Range` to include the lines of any `CommentBlock` immediately before
-   * the start line.
+   * The resulting `Location` is used for the total range of a `DocumentSymbol`
    *
-   * The resulting `Location` is used for the total range of a `DocumentSymbol`.
+   * This will adjust the `Range` based on surrounding comments:
+   * - If a `CommentBlock` immediately preceeds the `Range`, its lines are included.
+   * - If the last lines of the `Range` are in a `CommentBlock`, they're excluded
+   *   (because they might be the starting lines of the next `DocumentSymbol`).
    */
   makeLocation(startLine: number): vscode.Location {
-    let realStartLine = startLine;
-    // Check for a preceeding comment block
-    let comment = this.comments[this.comments.length - 1];
-    if (comment && comment.endLine === startLine - 1) {
-      realStartLine = comment.startLine;
+    // Include a preceeding comment block if found
+    let rangeStartLine = startLine;
+    const preComment = this.findCommentBlockEnding(startLine - 1);
+    if (preComment) {
+      rangeStartLine = preComment.startLine;
+    }
+
+    // Exclude a trailing comment block if found
+    let rangeEndLine = this.state.line - 1;
+    const postComment = this.findCommentBlockEnding(rangeEndLine);
+    if (postComment) {
+      rangeEndLine = postComment.startLine - 1;
     }
 
     let range = this.document
-      .lineAt(this.state.line - 1)
-      .rangeIncludingLineBreak.with(new vscode.Position(realStartLine, 0));
+      .lineAt(rangeEndLine)
+      .range.with(new vscode.Position(rangeStartLine, 0));
     return new vscode.Location(this.document.uri, range);
   }
 
@@ -142,12 +168,12 @@ class Parser {
     }
     let symbol = new ZoneSymbol(
       state.symbolType,
-      textSpanFromLineReference(this.document, state.symbolStartLine, state.symbolName),
+      textSpanFromLineReference(this.document, state.symbolName),
       this.makeLocation(state.symbolStartLine),
     );
     symbol.summary = state.symbolSummary;
     symbol.references = state.symbolReferences.map((ref) =>
-      textSpanFromLineReference(this.document, ref.line, ref),
+      textSpanFromLineReference(this.document, ref),
     );
     this.symbols.push(symbol);
     this.resetSymbolState();

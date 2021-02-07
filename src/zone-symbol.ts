@@ -115,9 +115,9 @@ export class ZoneSymbol {
 
 export function textSpanFromLineReference(
   document: vscode.TextDocument,
-  line: number,
   ref: ZoneSymbolLineRef,
 ): ZoneSymbolTextSpan {
+  const { line } = ref;
   // prettier-ignore
   const range = new vscode.Range(
     line, ref.index,
