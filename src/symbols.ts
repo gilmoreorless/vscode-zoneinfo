@@ -123,6 +123,19 @@ export function getForDocument(document: vscode.TextDocument): ZoneSymbol[] {
 }
 
 /**
+ * Get all symbols and comment blocks for a document.
+ */
+export function getForDocumentWithComments(
+  document: vscode.TextDocument,
+): {
+  symbols: ZoneSymbol[];
+  comments: CommentBlock[];
+} {
+  const { symbols, comments } = updateDocument(document);
+  return { symbols, comments };
+}
+
+/**
  * Return true if a document already been parsed and cached.
  */
 export function hasCachedDocument(document: vscode.TextDocument): boolean {

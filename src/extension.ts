@@ -15,6 +15,10 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.languages.registerWorkspaceSymbolProvider(new ZoneinfoWorkspaceSymbolProvider()),
     vscode.languages.registerDefinitionProvider(ZONEINFO_MODE, new ZoneinfoDefinitionProvider()),
     vscode.languages.registerReferenceProvider(ZONEINFO_MODE, new ZoneinfoReferenceProvider()),
+    vscode.languages.registerFoldingRangeProvider(
+      ZONEINFO_MODE,
+      new ZoneinfoFoldingRangeProvider(),
+    ),
     vscode.workspace.onDidChangeWorkspaceFolders(workspaceFoldersChanged),
     vscode.workspace.onDidChangeTextDocument(documentChanged),
   );
@@ -155,5 +159,45 @@ class ZoneinfoReferenceProvider implements vscode.ReferenceProvider {
     }
     logTime('provideReferences: getSymbols');
     return spans.map((s) => s.location);
+  }
+}
+
+class ZoneinfoFoldingRangeProvider implements vscode.FoldingRangeProvider {
+  provideFoldingRanges(
+    document: vscode.TextDocument,
+    context: vscode.FoldingContext,
+  ): vscode.FoldingRange[] {
+    log('[provideFoldingRanges]', document, context);
+    const logTime = timer();
+    const docItems = symbols.getForDocumentWithComments(document);
+    let foldingRanges: vscode.FoldingRange[] = [];
+
+    // Create folding ranges for all non-Link symbols
+    for (let symbol of docItems.symbols) {
+      if (symbol.type !== 'Link') {
+        foldingRanges.push(
+          new vscode.FoldingRange(
+            symbol.name.location.range.start.line,
+            symbol.totalRange.range.end.line,
+          ),
+        );
+      }
+    }
+
+    // Create folding ranges for all comment blocks of 2 or more lines
+    for (let commentBlock of docItems.comments) {
+      if (commentBlock.endLine > commentBlock.startLine) {
+        foldingRanges.push(
+          new vscode.FoldingRange(
+            commentBlock.startLine,
+            commentBlock.endLine,
+            vscode.FoldingRangeKind.Comment,
+          ),
+        );
+      }
+    }
+
+    logTime('provideFoldingRanges');
+    return foldingRanges;
   }
 }

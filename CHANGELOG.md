@@ -4,6 +4,9 @@ Development-only changes (e.g. updates to `devDependencies`) will not be listed 
 This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
+### Added
+- Line folding added for comments and symbols.
+
 ### Changed
 - Rewrote file parser to enable new functionality.
 - "Go to definition" is more context-aware to reduce ambiguity (e.g. a `Zone` referencing a `Rule` will no longer reference a `Link` with the same name).
