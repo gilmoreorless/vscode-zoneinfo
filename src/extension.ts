@@ -1,5 +1,3 @@
-'use strict';
-
 import * as vscode from 'vscode';
 
 import { log, timer } from './debug';
@@ -55,11 +53,15 @@ class ZoneinfoDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
     return allSymbols.map((s) => s.toSymbolInformation());
   }
 
-  uniqueSymbols(allSymbols: ZoneSymbol[]): vscode.SymbolInformation[] {
-    return this.toSymbolInformation(symbols.unique(allSymbols));
+  toDocumentSymbols(allSymbols: ZoneSymbol[]): vscode.DocumentSymbol[] {
+    return allSymbols.map((s) => s.toDocumentSymbol());
   }
 
-  async provideDocumentSymbols(document: vscode.TextDocument): Promise<vscode.SymbolInformation[]> {
+  uniqueSymbols(allSymbols: ZoneSymbol[]): vscode.DocumentSymbol[] {
+    return this.toDocumentSymbols(symbols.unique(allSymbols));
+  }
+
+  async provideDocumentSymbols(document: vscode.TextDocument): Promise<vscode.DocumentSymbol[]> {
     log('[provideDocumentSymbols]', document);
     const logTime = timer();
     const docSymbols = symbols.getForDocument(document);
@@ -119,7 +121,7 @@ class ZoneinfoDefinitionProvider implements vscode.DefinitionProvider {
   async provideDefinition(
     document: vscode.TextDocument,
     position: vscode.Position,
-  ): Promise<vscode.Definition | null> {
+  ): Promise<vscode.DefinitionLink[] | null> {
     log('[provideDefinition]', document, position);
     const logTime = timer();
     const span = symbols.getSpanForDocumentPosition(document, position);
@@ -130,7 +132,12 @@ class ZoneinfoDefinitionProvider implements vscode.DefinitionProvider {
     }
     const nameSymbols = await symbols.getForSpan(span);
     logTime('provideDefinition: getSymbols');
-    return nameSymbols.map((s) => s.name.location);
+    return nameSymbols.map((symbol) => ({
+      originSelectionRange: span.location.range,
+      targetUri: symbol.name.location.uri,
+      targetRange: symbol.totalRange.range,
+      targetSelectionRange: symbol.name.location.range,
+    }));
   }
 }
 

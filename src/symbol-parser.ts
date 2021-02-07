@@ -1,9 +1,13 @@
-'use strict';
-
 import * as vscode from 'vscode';
 
 import { log, timer } from './debug';
-import { ZoneSymbol, ZoneSymbolLineRef, ZoneSymbolType } from './zone-symbol';
+import {
+  CommentBlock,
+  ZoneSymbol,
+  ZoneSymbolLineRef,
+  ZoneSymbolType,
+  textSpanFromLineReference,
+} from './zone-symbol';
 
 export const PARSEABLE_FILENAMES = [
   'africa',
@@ -21,112 +25,266 @@ export const PARSEABLE_FILENAMES = [
   'systemv',
 ];
 
-const rValidLine = /^(Zone|Rule|Link)/;
+const rUsefulLine = /^#|Zone|Rule|Link|\t{2,}/;
 const rWhitespaceCapture = /(\s+)/;
 const rWhitespaceOnly = /^\s+$/;
 const rStartTabs = /^\t{2,}/;
 
-type NameLinkRefs = {
-  name?: ZoneSymbolLineRef;
-  link?: ZoneSymbolLineRef;
-};
-
-function tokensToReferences(tokens: string[], nameField: number, linkField?: number): NameLinkRefs {
-  let fieldIndex = -1;
+/**
+ * Split a line of text into indexed fields, using any whitespace as a field separator.
+ */
+function lineFields(lineNumber: number, lineText: string): ZoneSymbolLineRef[] {
+  // Capture whitespace while splitting because we need the total character count
+  const tokens = lineText.split(rWhitespaceCapture);
+  let fields: ZoneSymbolLineRef[] = [];
   let charIndex = 0;
-  let name: ZoneSymbolLineRef | undefined;
-  let link: ZoneSymbolLineRef | undefined;
-  tokens.forEach((token) => {
+  for (let token of tokens) {
     if (!rWhitespaceOnly.test(token)) {
-      fieldIndex++;
-      if (nameField > -1 && fieldIndex === nameField) {
-        name = { text: token, index: charIndex };
-      }
-      if (linkField !== undefined && fieldIndex === linkField && token !== '-') {
-        link = { text: token, index: charIndex };
-      }
+      fields.push({ text: token, line: lineNumber, index: charIndex });
     }
     charIndex += token.length;
-  });
-  return { name, link };
+  }
+  return fields;
 }
 
-function parseLine(document: vscode.TextDocument, lineNumber: number): ZoneSymbol | null {
-  const line = document.lineAt(lineNumber);
-  const text = line.text;
-  // Skip non-definition lines
-  if (line.isEmptyOrWhitespace || text.indexOf('#') === 0 || !rValidLine.test(text)) {
-    return null;
+type ParseResult = {
+  symbols: ZoneSymbol[];
+  comments: CommentBlock[];
+};
+
+type ParserState = {
+  line: number;
+  symbolStartLine?: number;
+  symbolType?: ZoneSymbolType;
+  symbolName?: ZoneSymbolLineRef;
+  symbolStartYear?: ZoneSymbolLineRef;
+  symbolEndYear?: ZoneSymbolLineRef;
+  symbolReferences: ZoneSymbolLineRef[];
+  symbolSummary?: string;
+};
+
+/**
+ * Stateful parser for a single text document.
+ */
+class Parser {
+  symbols: ZoneSymbol[] = [];
+  comments: CommentBlock[] = [];
+
+  private state: ParserState = {
+    line: 0,
+    symbolReferences: [],
+  };
+
+  constructor(private document: vscode.TextDocument) {}
+
+  resetSymbolState() {
+    this.state.symbolStartLine = undefined;
+    this.state.symbolType = undefined;
+    this.state.symbolName = undefined;
+    this.state.symbolStartYear = undefined;
+    this.state.symbolEndYear = undefined;
+    this.state.symbolSummary = undefined;
+    this.state.symbolReferences = [];
   }
 
-  const tokens = text.split(rWhitespaceCapture);
-  const type = <ZoneSymbolType>tokens[0];
-  let refs: NameLinkRefs | undefined;
-  switch (type) {
-    case 'Zone':
-      refs = tokensToReferences(tokens, 1, 3);
-      break;
-    case 'Rule':
-      refs = tokensToReferences(tokens, 1);
-      break;
-    case 'Link':
-      refs = tokensToReferences(tokens, 2, 1);
-      break;
+  /**
+   * Return a `Location` with a `Range` from the given start line to the parser's current line.
+   * This will adjust the `Range` to include the lines of any `CommentBlock` immediately before
+   * the start line.
+   *
+   * The resulting `Location` is used for the total range of a `DocumentSymbol`.
+   */
+  makeLocation(startLine: number): vscode.Location {
+    let realStartLine = startLine;
+    // Check for a preceeding comment block
+    let comment = this.comments[this.comments.length - 1];
+    if (comment && comment.endLine === startLine - 1) {
+      realStartLine = comment.startLine;
+    }
+
+    let range = this.document
+      .lineAt(this.state.line - 1)
+      .rangeIncludingLineBreak.with(new vscode.Position(realStartLine, 0));
+    return new vscode.Location(this.document.uri, range);
   }
-  if (refs?.name) {
+
+  /**
+   * Consume consecutive comment lines (starting with "#") and return a `CommentBlock`.
+   * This updates the parser's state for the current line and adds the `CommentBlock` to `this.comments`.
+   */
+  commentBlock(): CommentBlock {
+    const startLine = this.state.line;
+    while (this.state.line < this.document.lineCount - 1) {
+      const line = this.document.lineAt(this.state.line + 1);
+      if (!line.text.startsWith('#')) {
+        break;
+      }
+      this.state.line++;
+    }
+
+    const block = new CommentBlock(startLine, this.state.line);
+    this.comments.push(block);
+    return block;
+  }
+
+  /**
+   * Finish off (finalise) the symbol that's currently being parsed.
+   * 1. Create a new `ZoneSymbol` from the current state.
+   * 2. Add the `ZoneSymbol` to `this.symbols`.
+   * 3. Reset parser state.
+   *
+   * This should be called whenever a symbol is being parsed and a non-symbol line is found.
+   */
+  finishSymbol(): void {
+    const { state } = this;
+    if (!state.symbolType || !state.symbolName || state.symbolStartLine === undefined) {
+      return;
+    }
     let symbol = new ZoneSymbol(
-      type,
-      ZoneSymbol.textSpanFromLineReference(document, lineNumber, refs.name),
-      ZoneSymbol.textSpanFromLineReference(document, lineNumber, refs.link),
+      state.symbolType,
+      textSpanFromLineReference(this.document, state.symbolStartLine, state.symbolName),
+      this.makeLocation(state.symbolStartLine),
     );
-    if (type === 'Link') {
-      symbol.parentText = `Link(${tokens[2]})`;
-    }
-    return symbol;
+    symbol.summary = state.symbolSummary;
+    symbol.references = state.symbolReferences.map((ref) =>
+      textSpanFromLineReference(this.document, ref.line, ref),
+    );
+    this.symbols.push(symbol);
+    this.resetSymbolState();
   }
-  return null;
-}
 
-function parseExtraZoneLines(
-  document: vscode.TextDocument,
-  lineNumber: number,
-  symbol: ZoneSymbol,
-): number {
-  let count = 0;
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
-    const text = document.lineAt(lineNumber).text;
-    if (!rStartTabs.test(text)) {
-      return count;
-    }
-    const tokens = text.split(rWhitespaceCapture);
-    const refs = tokensToReferences(tokens, -1, 2);
-    if (refs?.link) {
-      symbol.references.push(ZoneSymbol.textSpanFromLineReference(document, lineNumber, refs.link));
-    }
-    lineNumber++;
-    count++;
-  }
-}
+  /**
+   * Parse the document and return lists of `ZoneSymbol`s and `CommentBlock`s.
+   */
+  parse(): ParseResult {
+    const logTime = timer();
+    const lineCount = this.document.lineCount;
+    this.state = {
+      line: 0,
+      symbolReferences: [],
+    };
+    this.symbols = [];
+    this.comments = [];
+    let { state } = this;
 
-export function parseDocument(document: vscode.TextDocument): ZoneSymbol[] {
-  const logTime = timer();
-  const lineCount = document.lineCount;
-  let symbols = [];
-  for (let i = 0; i < lineCount; i++) {
-    let symbol = parseLine(document, i);
-    if (symbol) {
-      symbols.push(symbol);
-      if (symbol.type === 'Zone') {
-        i += parseExtraZoneLines(document, i + 1, symbol);
+    for (; state.line < lineCount; state.line++) {
+      let line = this.document.lineAt(state.line);
+      let match = rUsefulLine.exec(line.text)?.[0];
+      if (!match) {
+        this.finishSymbol();
+        continue;
+      }
+
+      // Parse comment sections and keep a reference to the latest one
+      if (match === '#') {
+        this.commentBlock();
+        continue;
+      }
+
+      // Parse Link, Rule, and Zone sections with reference to previous comments
+      let fields = lineFields(state.line, line.text);
+
+      // Check for Zone continuation lines first
+      if (rStartTabs.test(line.text)) {
+        if (state.symbolType !== 'Zone') {
+          throw new Error(
+            `Unexpected indented source line not in a Zone block.
+  File: ${this.document.fileName}
+  Line: ${this.state.line + 1}`,
+          );
+        }
+        // 0        1       2      3       4
+        // (empty)  STDOFF  RULES  FORMAT  [UNTIL]
+        let rules = fields[2];
+        if (rules.text !== '-') {
+          state.symbolReferences.push(rules);
+        }
+        continue;
+      }
+
+      // Check for a previous symbol in progess
+      let symbolType = match as ZoneSymbolType;
+      if (state.symbolType && state.symbolType !== symbolType) {
+        this.finishSymbol();
+      }
+
+      // Start a new symbol, or continue an existing one
+      state.symbolType = symbolType;
+      if (state.symbolStartLine === undefined) {
+        state.symbolStartLine = state.line;
+      }
+      switch (symbolType) {
+        // 0     1       2
+        // Link  TARGET  LINK-NAME
+        case 'Link': {
+          let [, target, name] = fields;
+          // If the in-progess Rule has a different name, end it and reset state
+          if (state.symbolName && state.symbolName.text !== name.text) {
+            this.finishSymbol();
+            state.symbolType = symbolType;
+            state.symbolStartLine = state.line;
+          }
+          state.symbolName = name;
+          state.symbolReferences.push(target);
+          state.symbolSummary = target.text;
+          break;
+        }
+
+        // 0     1     2     3   4  5   6   7   8     9
+        // Rule  NAME  FROM  TO  -  IN  ON  AT  SAVE  LETTER/S
+        case 'Rule': {
+          let [, name, startYear, endYear] = fields;
+          // If the in-progess Rule has a different name, end it and reset state
+          if (state.symbolName && state.symbolName.text !== name.text) {
+            this.finishSymbol();
+            state.symbolType = symbolType;
+            state.symbolStartLine = state.line;
+          }
+
+          if (!state.symbolName) {
+            state.symbolName = name;
+          }
+          if (!state.symbolStartYear) {
+            state.symbolStartYear = startYear;
+          }
+          state.symbolEndYear = endYear.text === 'only' ? startYear : endYear;
+          state.symbolSummary =
+            state.symbolEndYear.text === 'max'
+              ? `${state.symbolStartYear.text}+`
+              : `${state.symbolStartYear.text}–${state.symbolEndYear.text}`;
+          break;
+        }
+
+        // 0     1     2       3      4       5
+        // Zone  NAME  STDOFF  RULES  FORMAT  [UNTIL]
+        case 'Zone': {
+          let [, name, , rules] = fields;
+          // If the in-progess Zone has a different name, end it and reset state
+          if (state.symbolName && state.symbolName.text !== name.text) {
+            this.finishSymbol();
+            state.symbolType = symbolType;
+            state.symbolStartLine = state.line;
+          }
+
+          state.symbolName = name;
+          if (rules.text !== '-') {
+            state.symbolReferences.push(rules);
+          }
+          break;
+        }
       }
     }
+    this.finishSymbol();
+    logTime(`[parseDocument ${this.document.fileName.split('/').pop()}]`);
+    return { symbols: this.symbols, comments: this.comments };
   }
-  logTime(`[parseDocument ${document.fileName.split('/').pop()}]`);
-  return symbols;
 }
 
-type DocumentSymbols = { file: vscode.Uri; symbols: ZoneSymbol[] };
+export function parseDocument(document: vscode.TextDocument): ParseResult {
+  return new Parser(document).parse();
+}
+
+type DocumentSymbols = { file: vscode.Uri } & ParseResult;
 type FolderSymbols = { path: string; documents: DocumentSymbols[] };
 
 export async function parseCurrentWorkspace(): Promise<FolderSymbols[]> {
@@ -156,9 +314,9 @@ export async function parseWorkspaceFolder(folder: vscode.WorkspaceFolder): Prom
         const logFileTime = timer();
         const doc = await vscode.workspace.openTextDocument(file);
         logFileTime(`${filename}: open`);
-        const symbols = parseDocument(doc);
+        const { symbols, comments } = parseDocument(doc);
         logFileTime(`${filename}: parse`);
-        return { file, symbols };
+        return { file, symbols, comments };
       })(),
     );
   }

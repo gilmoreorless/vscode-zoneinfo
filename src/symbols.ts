@@ -4,7 +4,11 @@ import { log, timer } from './debug';
 import { documentHash } from './hash';
 import * as cache from './symbol-cache';
 import * as parser from './symbol-parser';
-import { ZoneSymbol, ZoneSymbolTextSpan } from './zone-symbol';
+import { ZoneSymbol, ZoneSymbolTextSpan, ZoneSymbolType } from './zone-symbol';
+
+type TextSpanWithSymbol = ZoneSymbolTextSpan & {
+  symbol: ZoneSymbol;
+};
 
 /**
  * Get all symbols for a document and sync them with the cache.
@@ -39,7 +43,7 @@ function updateDocument(
 
   if (shouldUpdate) {
     log(`[updateDocument ${filename}]: parsing`);
-    symbols = parser.parseDocument(document);
+    symbols = parser.parseDocument(document).symbols;
     cache.setForDocument(document, hash, symbols);
   }
   logTime(`[updateDocument ${filename}]: TOTAL`);
@@ -165,15 +169,36 @@ export function hasCachedWorkspace(): boolean {
 
 /**
  * Get all symbols with names that match a given text span.
- * Symbols are restricted to the same workspace folder as the text span.
+ * Symbols are restricted to the same workspace folder as the text span, then filtered further
+ * based on the span's parent symbol:
+ * - If the parent symbol is a `Link`, only `Zone` symbols will be returned.
+ * - If the parent symbol is a `Rule`, only `Rule` symbols will be returned.
+ * - If the parent symbol is a `Zone`, the returned type depends on the context (either `Zone` or `Rule`).
  */
-export async function getForSpan(span: ZoneSymbolTextSpan): Promise<ZoneSymbol[]> {
+export async function getForSpan(span: TextSpanWithSymbol): Promise<ZoneSymbol[]> {
   const folder = vscode.workspace.getWorkspaceFolder(span.location.uri);
   if (!folder) {
     return [];
   }
+  let expectedType: ZoneSymbolType;
+  switch (span.symbol.type) {
+    case 'Link':
+      expectedType = 'Zone';
+      break;
+    case 'Rule':
+      expectedType = 'Rule';
+      break;
+    case 'Zone':
+      expectedType = span.text.includes('/') ? 'Zone' : 'Rule';
+      break;
+  }
   const allSymbols = await getForFolder(folder);
-  return allSymbols.filter((s) => s.name.text === span.text);
+  return allSymbols.filter((symbol) => {
+    if (expectedType && symbol.type !== expectedType) {
+      return false;
+    }
+    return symbol.name.text === span.text;
+  });
 }
 
 /**
@@ -202,15 +227,24 @@ export async function getSpanLinksToName(span: ZoneSymbolTextSpan): Promise<Zone
 export function getSpanForDocumentPosition(
   document: vscode.TextDocument,
   position: vscode.Position,
-): ZoneSymbolTextSpan | null {
+): TextSpanWithSymbol | null {
   const docSymbols = getForDocument(document);
   for (let symbol of docSymbols) {
+    if (!symbol.totalRange.range.contains(position)) {
+      continue;
+    }
     if (symbol.name.location.range.contains(position)) {
-      return symbol.name;
+      return {
+        ...symbol.name,
+        symbol,
+      };
     }
     for (let ref of symbol.references) {
       if (ref.location.range.contains(position)) {
-        return ref;
+        return {
+          ...ref,
+          symbol,
+        };
       }
     }
   }
@@ -219,6 +253,7 @@ export function getSpanForDocumentPosition(
 
 /**
  * De-duplicate a list of symbols.
+ * Duplicates are symbols in the same document with the same type and name.
  */
 export function unique(symbols: ZoneSymbol[]): ZoneSymbol[] {
   let used = new Set();
