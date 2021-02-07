@@ -15,6 +15,10 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.languages.registerWorkspaceSymbolProvider(new ZoneinfoWorkspaceSymbolProvider()),
     vscode.languages.registerDefinitionProvider(ZONEINFO_MODE, new ZoneinfoDefinitionProvider()),
     vscode.languages.registerReferenceProvider(ZONEINFO_MODE, new ZoneinfoReferenceProvider()),
+    vscode.languages.registerFoldingRangeProvider(
+      ZONEINFO_MODE,
+      new ZoneinfoFoldingRangeProvider(),
+    ),
     vscode.workspace.onDidChangeWorkspaceFolders(workspaceFoldersChanged),
     vscode.workspace.onDidChangeTextDocument(documentChanged),
   );
@@ -57,15 +61,11 @@ class ZoneinfoDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
     return allSymbols.map((s) => s.toDocumentSymbol());
   }
 
-  uniqueSymbols(allSymbols: ZoneSymbol[]): vscode.DocumentSymbol[] {
-    return this.toDocumentSymbols(symbols.unique(allSymbols));
-  }
-
   async provideDocumentSymbols(document: vscode.TextDocument): Promise<vscode.DocumentSymbol[]> {
     log('[provideDocumentSymbols]', document);
     const logTime = timer();
     const docSymbols = symbols.getForDocument(document);
-    let ret = this.uniqueSymbols(docSymbols);
+    let ret = this.toDocumentSymbols(docSymbols);
     logTime('provideDocumentSymbols');
     return ret;
   }
@@ -79,9 +79,8 @@ class ZoneinfoWorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider 
   }
 
   filteredSymbols(allSymbols: ZoneSymbol[], query: string): vscode.SymbolInformation[] {
-    const uniqueSymbols = symbols.unique(allSymbols);
     if (!query.length) {
-      return this.symbolProvider.toSymbolInformation(uniqueSymbols);
+      return this.symbolProvider.toSymbolInformation(allSymbols);
     }
     // Just match that the query chars appear somewhere in the name in the right order.
     // Let VS Code handle the sorting by relevance.
@@ -102,7 +101,7 @@ class ZoneinfoWorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider 
       return true;
     };
 
-    const filtered = uniqueSymbols.filter((symbol: ZoneSymbol) => doesMatch(symbol.name.text));
+    const filtered = allSymbols.filter((symbol: ZoneSymbol) => doesMatch(symbol.name.text));
     return this.symbolProvider.toSymbolInformation(filtered);
   }
 
@@ -160,5 +159,45 @@ class ZoneinfoReferenceProvider implements vscode.ReferenceProvider {
     }
     logTime('provideReferences: getSymbols');
     return spans.map((s) => s.location);
+  }
+}
+
+class ZoneinfoFoldingRangeProvider implements vscode.FoldingRangeProvider {
+  provideFoldingRanges(
+    document: vscode.TextDocument,
+    context: vscode.FoldingContext,
+  ): vscode.FoldingRange[] {
+    log('[provideFoldingRanges]', document, context);
+    const logTime = timer();
+    const docItems = symbols.getForDocumentWithComments(document);
+    let foldingRanges: vscode.FoldingRange[] = [];
+
+    // Create folding ranges for all non-Link symbols
+    for (let symbol of docItems.symbols) {
+      if (symbol.type !== 'Link') {
+        foldingRanges.push(
+          new vscode.FoldingRange(
+            symbol.name.location.range.start.line,
+            symbol.totalRange.range.end.line,
+          ),
+        );
+      }
+    }
+
+    // Create folding ranges for all comment blocks of 2 or more lines
+    for (let commentBlock of docItems.comments) {
+      if (commentBlock.endLine > commentBlock.startLine) {
+        foldingRanges.push(
+          new vscode.FoldingRange(
+            commentBlock.startLine,
+            commentBlock.endLine,
+            vscode.FoldingRangeKind.Comment,
+          ),
+        );
+      }
+    }
+
+    logTime('provideFoldingRanges');
+    return foldingRanges;
   }
 }

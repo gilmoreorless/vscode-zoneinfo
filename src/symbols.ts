@@ -4,7 +4,7 @@ import { log, timer } from './debug';
 import { documentHash } from './hash';
 import * as cache from './symbol-cache';
 import * as parser from './symbol-parser';
-import { ZoneSymbol, ZoneSymbolTextSpan, ZoneSymbolType } from './zone-symbol';
+import { CommentBlock, ZoneSymbol, ZoneSymbolTextSpan, ZoneSymbolType } from './zone-symbol';
 
 type TextSpanWithSymbol = ZoneSymbolTextSpan & {
   symbol: ZoneSymbol;
@@ -19,6 +19,7 @@ function updateDocument(
   document: vscode.TextDocument,
 ): {
   symbols: ZoneSymbol[];
+  comments: CommentBlock[];
   didUpdate: boolean;
 } {
   const filename = document.fileName.split('/').pop();
@@ -26,6 +27,7 @@ function updateDocument(
   const logTime = timer();
   let shouldUpdate = false;
   let symbols: ZoneSymbol[] = [];
+  let comments: CommentBlock[] = [];
   const hash = documentHash(document);
   const cachedDocument = cache.getForDocument(document);
   logTime(`[updateDocument ${filename}]: hash and get`);
@@ -34,20 +36,24 @@ function updateDocument(
     shouldUpdate = true;
   } else {
     log(`[updateDocument ${filename}]: already cached`);
-    symbols = cachedDocument.symbols;
     if (cachedDocument.hash !== hash) {
       log(`[updateDocument ${filename}]: cached hash didn't match`);
       shouldUpdate = true;
+    } else {
+      symbols = cachedDocument.symbols;
+      comments = cachedDocument.comments;
     }
   }
 
   if (shouldUpdate) {
     log(`[updateDocument ${filename}]: parsing`);
-    symbols = parser.parseDocument(document).symbols;
-    cache.setForDocument(document, hash, symbols);
+    const parseResult = parser.parseDocument(document);
+    symbols = parseResult.symbols;
+    comments = parseResult.comments;
+    cache.setForDocument(document, hash, symbols, comments);
   }
   logTime(`[updateDocument ${filename}]: TOTAL`);
-  return { symbols, didUpdate: shouldUpdate };
+  return { symbols, comments, didUpdate: shouldUpdate };
 }
 
 /**
@@ -114,6 +120,19 @@ async function updateWorkspace(): Promise<ZoneSymbol[]> {
 export function getForDocument(document: vscode.TextDocument): ZoneSymbol[] {
   const updateResult = updateDocument(document);
   return updateResult.symbols;
+}
+
+/**
+ * Get all symbols and comment blocks for a document.
+ */
+export function getForDocumentWithComments(
+  document: vscode.TextDocument,
+): {
+  symbols: ZoneSymbol[];
+  comments: CommentBlock[];
+} {
+  const { symbols, comments } = updateDocument(document);
+  return { symbols, comments };
 }
 
 /**
@@ -249,20 +268,4 @@ export function getSpanForDocumentPosition(
     }
   }
   return null;
-}
-
-/**
- * De-duplicate a list of symbols.
- * Duplicates are symbols in the same document with the same type and name.
- */
-export function unique(symbols: ZoneSymbol[]): ZoneSymbol[] {
-  let used = new Set();
-  return symbols.filter((symbol) => {
-    const key = [symbol.type, symbol.name.text, symbol.name.location.uri.toString()].join(':');
-    if (used.has(key)) {
-      return false;
-    }
-    used.add(key);
-    return true;
-  });
 }
