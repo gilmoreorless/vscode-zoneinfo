@@ -3,6 +3,10 @@ All notable changes to this project will be documented in this file (the format 
 Development-only changes (e.g. updates to `devDependencies`) will not be listed here, as they don’t affect the public features.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## 3.1.1 - 2021-02-12
+### Fixed
+- Corrected broken image paths in the README.
+
 ## 3.1.0 - 2021-02-12
 ### Added
 - Line folding added for comments and symbols.
