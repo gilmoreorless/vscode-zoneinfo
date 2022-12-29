@@ -86,6 +86,7 @@
     "lint:fix": "eslint . --ext .ts --fix && prettier --write src test",
     "pretest": "npm run compile && npm run lint",
     "test": "node ./out/test/runTest.js",
+    "version": "sed -i '' -e \"s/Unreleased/$npm_package_version - $(date +'%Y-%m-%d')/\" CHANGELOG.md && git add CHANGELOG.md",
     "vscode:prepublish": "npm run compile",
     "watch": "tsc -watch -p ./"
   },
