@@ -3,6 +3,10 @@ All notable changes to this project will be documented in this file (the format 
 Development-only changes (e.g. updates to `devDependencies`) will not be listed here, as they don’t affect the public features.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+### Fixed
+- Fixed a parsing bug caused by comment format changes in tzdb `2022b` sources.
+
 ## 3.1.1 - 2021-02-12
 ### Fixed
 - Corrected broken image paths in the README.

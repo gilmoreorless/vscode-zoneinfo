@@ -25,7 +25,7 @@ export const PARSEABLE_FILENAMES = [
   'systemv',
 ];
 
-const rUsefulLine = /^#|Zone|Rule|Link|\t{2,}/;
+const rUsefulLine = /^\s*#|Zone|Rule|Link|\t{2,}/;
 const rWhitespaceCapture = /(\s+)/;
 const rWhitespaceOnly = /^\s+$/;
 const rStartTabs = /^\t{2,}/;
@@ -142,7 +142,7 @@ class Parser {
     const startLine = this.state.line;
     while (this.state.line < this.document.lineCount - 1) {
       const line = this.document.lineAt(this.state.line + 1);
-      if (!line.text.startsWith('#')) {
+      if (!line.text.trimLeft().startsWith('#')) {
         break;
       }
       this.state.line++;
@@ -202,7 +202,7 @@ class Parser {
       }
 
       // Parse comment sections and keep a reference to the latest one
-      if (match === '#') {
+      if (match.trimLeft() === '#') {
         this.commentBlock();
         continue;
       }
